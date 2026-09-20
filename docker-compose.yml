@@ -1,0 +1,8 @@
+services:
+  angular-dev:
+    build: .
+    container_name: angular_dev_env
+    ports:
+      - "4200:4200"
+    volumes:
+      - .:/app

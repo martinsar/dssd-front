@@ -1,0 +1,98 @@
+.form-container {
+  max-width: 550px;
+  margin: 50px auto;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  padding: 40px;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  border-top: 6px solid #0d6efd; /* Un azul institucional */
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 30px;
+
+  h2 {
+    margin: 0;
+    color: #212529;
+    font-size: 26px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: #6c757d;
+    font-size: 15px;
+  }
+}
+
+.emergencia-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+  }
+}
+
+.form-control {
+  padding: 12px 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 15px;
+  color: #212529;
+  background-color: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
+
+  &::placeholder {
+    color: #adb5bd;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+  }
+}
+
+textarea.form-control {
+  resize: vertical; /* Permite agrandar solo hacia abajo */
+}
+
+.btn-submit {
+  margin-top: 15px;
+  padding: 14px;
+  background-color: #0d6efd;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #0b5ed7;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98); /* Pequeño efecto al hacer clic */
+  }
+
+  &:disabled {
+    background-color: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+  }
+}
