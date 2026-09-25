@@ -2,6 +2,13 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.8.
 
+#Instalar las dependencias (solo si aún no tienes la carpeta
+docker compose run --rm angular-dev npm install
+
+#Construir la imagen y levantar el servidor:
+docker compose up -d --build
+
+
 ## Development server
 
 To start a local development server, run:
