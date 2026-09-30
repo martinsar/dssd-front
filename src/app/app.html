@@ -1,8 +1,11 @@
 <nav class="navbar">
   <ul>
-    <li><a routerLink="/emergencia" routerLinkActive="active">Panel Coordinador (Emergencias)</a></li>
-    <li><a routerLink="/ofertas" routerLinkActive="active">Panel ONG (Ofertas)</a></li>
-    <li><a routerLink="/necesidades" routerLinkActive="active">Publicar Lote (Necesidad)</a></li>
+    <!-- [Entrega 2 · Tarea 4] Menú reorganizado por rol. Antes: "Panel Coordinador (Emergencias)" apuntaba
+         al alta de emergencia, que es del Municipio; y "Publicar Lote (Necesidad)" cargaba un solo lote
+         por vez sobre una convocatoria que no se podía crear. Ahora la reemplaza /coordinador. -->
+    <li><a routerLink="/emergencia" routerLinkActive="active">Municipio (Alta de emergencia)</a></li>
+    <li><a routerLink="/coordinador" routerLinkActive="active">Coordinador (Convocatorias)</a></li>
+    <li><a routerLink="/ofertas" routerLinkActive="active">ONG (Ofertas)</a></li>
   </ul>
 </nav>
 

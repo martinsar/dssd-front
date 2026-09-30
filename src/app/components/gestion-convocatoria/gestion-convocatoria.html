@@ -1,0 +1,119 @@
+<!-- [Entrega 2 · Tarea 4] ARCHIVO NUEVO. Vista de la pantalla del coordinador.
+     Usa el control flow moderno de Angular (@if / @for) en lugar de *ngIf / *ngFor. -->
+<div class="coordinador">
+  <header class="encabezado">
+    <h2>Gestión de convocatorias</h2>
+    <p>Centro Coordinador Regional · relevamiento de lotes y publicación</p>
+  </header>
+
+  <!-- Indicador de pasos -->
+  <ol class="pasos">
+    <li [class.activo]="paso() === 'lista'">1 · Elegir emergencia</li>
+    <li [class.activo]="paso() === 'relevamiento'">2 · Relevamiento</li>
+    <li [class.activo]="paso() === 'publicacion'">3 · Publicación</li>
+  </ol>
+
+  @if (error()) {
+    <div class="alerta alerta-error">{{ error() }}</div>
+  }
+  @if (mensajeOk()) {
+    <div class="alerta alerta-ok">{{ mensajeOk() }}</div>
+  }
+
+  <!-- ===== Paso 1: elegir emergencia ===== -->
+  @if (paso() === 'lista') {
+    <section class="tarjeta">
+      <h3>Emergencias pendientes</h3>
+      <p class="ayuda">Emergencias sin convocatoria publicada.</p>
+
+      @for (e of emergencias(); track e.id) {
+        <div class="fila-emergencia">
+          <div>
+            <strong>#{{ e.id }} {{ e.tipoDesastre }}</strong> · {{ e.nivelGravedad }} · {{ e.zonaAfectada }}
+            <div class="ayuda">{{ e.descripcion }}</div>
+          </div>
+          <button type="button" class="btn-secundario" [disabled]="cargando()" (click)="seleccionar(e)">Gestionar</button>
+        </div>
+      } @empty {
+        <p class="ayuda">No hay emergencias pendientes.</p>
+      }
+    </section>
+  }
+
+  <!-- ===== Paso 2: relevamiento (tarea "Desglosar Lotes") ===== -->
+  @if (paso() === 'relevamiento') {
+    <section class="tarjeta">
+      <h3>Relevamiento · Emergencia #{{ emergenciaSeleccionada()?.id }} ({{ emergenciaSeleccionada()?.tipoDesastre }})</h3>
+      <p class="ayuda">Cargá todos los lotes de necesidades de la convocatoria. Al guardar se completa "Desglosar Lotes" en Bonita.</p>
+
+      @if (sinTiposRecurso()) {
+        <div class="alerta alerta-aviso">No hay tipos de recurso cargados en la base. Cargalos antes de relevar (ver Swagger: POST /api/tipos-recurso).</div>
+      }
+
+      <form [formGroup]="relevamientoForm" (ngSubmit)="guardarRelevamiento()">
+        <div class="lotes-encabezado">
+          <span>Tipo de recurso</span><span>Cantidad</span><span>Descripción</span><span></span>
+        </div>
+
+        <!-- formArrayName enlaza el FormArray; cada fila es un FormGroup identificado por su índice -->
+        <div formArrayName="lotes">
+          @for (lote of lotes.controls; track lote; let i = $index) {
+            <div class="lote" [formGroupName]="i">
+              <select formControlName="tipoRecursoId">
+                <option [ngValue]="null" disabled>Seleccione…</option>
+                @for (t of tiposRecurso(); track t.id) {
+                  <option [ngValue]="t.id">{{ t.nombre }}</option>
+                }
+              </select>
+              <input type="number" min="1" formControlName="cantidad">
+              <input type="text" formControlName="descripcion" placeholder="Ej: turnos de 12 h">
+              <button type="button" class="btn-icono" title="Quitar lote" [disabled]="lotes.length === 1" (click)="quitarLote(i)">✕</button>
+            </div>
+          }
+        </div>
+
+        <button type="button" class="btn-agregar" (click)="agregarLote()">+ Agregar lote</button>
+
+        <div class="acciones">
+          <button type="button" class="btn-secundario" (click)="volverALista()">Volver</button>
+          <button type="submit" class="btn-primario" [disabled]="cargando() || sinTiposRecurso()">
+            {{ cargando() ? 'Guardando…' : 'Guardar relevamiento' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <!-- ===== Paso 3: publicación formal (tarea "Gestionar Convocatoria") ===== -->
+  @if (paso() === 'publicacion') {
+    <section class="tarjeta">
+      <h3>Publicación · Convocatoria #{{ convocatoria()?.id }} · Emergencia #{{ emergenciaSeleccionada()?.id }}</h3>
+      <p class="ayuda">Definí la ventana de tiempo para recibir ofertas. Al publicar se completa "Gestionar Convocatoria" en Bonita y se notifica a las ONGs.</p>
+
+      <h4>Lotes relevados</h4>
+      <ul class="lotes-relevados">
+        @for (l of lotesRelevados(); track l.id) {
+          <li><strong>{{ l.cantidad }}</strong> {{ l.tipoRecurso?.nombre }} · {{ l.descripcion }}</li>
+        }
+      </ul>
+
+      <form [formGroup]="publicacionForm" (ngSubmit)="publicar()">
+        <label>
+          Apertura (opcional, por defecto ahora)
+          <input type="datetime-local" formControlName="fechaApertura">
+        </label>
+        <label>
+          Cierre de la ventana de ofertas
+          <input type="datetime-local" formControlName="fechaCierre">
+        </label>
+
+        <div class="acciones">
+          <button type="button" class="btn-secundario" (click)="volverALista()">Volver</button>
+          <button type="submit" class="btn-publicar" [disabled]="cargando()">
+            {{ cargando() ? 'Publicando…' : 'Publicar convocatoria' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+</div>
