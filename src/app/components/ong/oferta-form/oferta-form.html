@@ -1,0 +1,129 @@
+<!-- [Entrega final] Vista de la carga y la edición de un lote -->
+<div class="ef page">
+  <p>
+    <a [routerLink]="editando && oferta() ? ['/ong/ofertas', oferta()!.id] : ofertaConjuntaId ? ['/ong/ofertas-conjuntas', ofertaConjuntaId] : '/ong'">&larr; Volver</a>
+  </p>
+
+  <header class="page-header">
+    <h1>{{ editando ? 'Modificar lote' : ofertaConjuntaId ? 'Cargar lote en la oferta conjunta N° ' + ofertaConjuntaId : 'Ofertar' }}</h1>
+    <p>Ofrecé los recursos que tu organización puede aportar a esta emergencia.</p>
+  </header>
+
+  @if (cargando()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando…</div>
+  } @else if (noEncontrada()) {
+    <div class="empty-state">
+      <p class="empty-state-title">No encontramos {{ editando ? 'el lote' : 'la convocatoria' }}</p>
+      <p><a class="btn btn-secondary btn-sm" routerLink="/ong">Ver convocatorias</a></p>
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar los datos</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else {
+    @if (convocatoria(); as conv) {
+      <section class="card">
+        <h2 class="card-title">Emergencia N° {{ conv.emergenciaId }} · {{ conv.tipoDesastre }}</h2>
+        <div class="row">
+          <span [class]="'badge ' + claseGravedad(conv.nivelGravedad)">{{ conv.nivelGravedad }}</span>
+          <span class="text-muted text-sm">
+            {{ conv.zonaAfectada }} · Cierra el {{ conv.fechaCierre | date: 'dd/MM/yyyy HH:mm' }} ({{ tiempoRestante(conv.fechaCierre) }})
+          </span>
+        </div>
+
+        <h3 class="subtitulo">Lo que se necesita</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Recurso</th><th class="num">Cantidad requerida</th></tr>
+            </thead>
+            <tbody>
+              @for (l of conv.lotes; track l.necesidadId) {
+                <tr>
+                  <td>{{ l.tipoRecurso }}<div class="text-muted text-sm">{{ l.descripcion }}</div></td>
+                  <td class="num">{{ l.cantidadRequerida }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    <form class="card" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+      <h2 class="card-title">Tu lote</h2>
+
+      @if (ventanaCerrada() || (convocatoria() && !convocatoria()!.abierta)) {
+        <div class="alert alert-warning" role="status">La convocatoria ya cerró: no se pueden cargar ni modificar lotes.</div>
+      } @else if (bloqueado()) {
+        <div class="alert alert-warning" role="status">Este lote ya no se puede modificar.</div>
+      }
+      @if (conflicto()) {
+        <div class="alert alert-warning" role="alert">
+          <span class="alert-title">Otra persona modificó la oferta</span>
+          Mientras editabas, el lote cambió. Recargalo para ver los datos actuales y volver a aplicar tus cambios.
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="cargar()">Recargar</button>
+          </div>
+        </div>
+      } @else if (errorEnvio() && !ventanaCerrada()) {
+        <div class="alert alert-error" role="alert">
+          <span class="alert-title">No se pudo guardar el lote</span>
+          {{ errorEnvio() }}
+        </div>
+      }
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="tipoRecursoId" class="field-required">Tipo de recurso</label>
+          <select id="tipoRecursoId" formControlName="tipoRecursoId">
+            <option [ngValue]="null" disabled>Elegí un tipo de recurso</option>
+            @for (t of tiposRecurso(); track t.id) {
+              <option [ngValue]="t.id">{{ t.nombre }}</option>
+            }
+          </select>
+          @if (invalido('tipoRecursoId')) {
+            <p class="field-error">Elegí el tipo de recurso.</p>
+          } @else if (itemInventario(); as item) {
+            <p class="field-help">Tenés {{ item.cantidadDisponible }} en inventario ({{ libre() }} libres).</p>
+          }
+          @if (fueraDeEspecialidad()) {
+            <p class="field-help field-warning" role="status">Este recurso no está entre tus especialidades; puede no ser validado.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="cantidad" class="field-required">Cantidad</label>
+          <input type="number" id="cantidad" min="1" step="1" formControlName="cantidad" placeholder="Ej: 100">
+          @if (invalido('cantidad')) {
+            <p class="field-error">La cantidad tiene que ser mayor que 0.</p>
+          } @else if (excedeInventario()) {
+            <p class="field-help field-warning">Es más de lo que tenés libre en tu inventario. Podés ofertar igual.</p>
+          }
+        </div>
+
+        <div class="field field-full">
+          <label for="descripcion" class="field-required">Descripción</label>
+          <textarea id="descripcion" formControlName="descripcion" rows="3" placeholder="Ej: bidones de 5 litros"></textarea>
+          @if (invalido('descripcion')) {
+            <p class="field-error">
+              {{ form.controls.descripcion.hasError('maxlength') ? 'La descripción no puede superar los 255 caracteres.' : 'Cargá una descripción.' }}
+            </p>
+          } @else {
+            <p class="field-help">Hasta 255 caracteres.</p>
+          }
+        </div>
+
+        <div class="field-full">
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" [class.is-loading]="enviando()" [disabled]="enviando() || bloqueado()">
+              {{ enviando() ? 'Guardando…' : editando ? 'Guardar cambios' : 'Cargar lote' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  }
+</div>

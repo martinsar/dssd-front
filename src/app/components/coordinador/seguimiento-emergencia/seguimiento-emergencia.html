@@ -1,0 +1,248 @@
+<!-- [Entrega final] Vista del seguimiento de una emergencia -->
+<div class="ef page">
+  <p><a routerLink="/coordinador">&larr; Volver al monitoreo</a></p>
+
+  @if (cargando() && !datos()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando el seguimiento…</div>
+  } @else if (noEncontrada()) {
+    <div class="empty-state">
+      <p class="empty-state-title">No encontramos la emergencia</p>
+      <p><a class="btn btn-secondary btn-sm" routerLink="/coordinador">Volver al monitoreo</a></p>
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar el seguimiento</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (datos(); as s) {
+    <header class="page-header">
+      <h1>Emergencia N° {{ s.emergencia.id }} · {{ s.emergencia.tipoDesastre }}</h1>
+      <div class="row">
+        <span [class]="'badge ' + claseGravedad(s.emergencia.nivelGravedad)">{{ s.emergencia.nivelGravedad }}</span>
+        <span [class]="'badge ' + claseEtapa[s.emergencia.etapa]">{{ etiquetaEtapa[s.emergencia.etapa] }}</span>
+        <span class="text-muted text-sm">{{ s.emergencia.zonaAfectada }} · Registrada el {{ s.emergencia.fechaCreacion | date: 'dd/MM/yyyy' }}</span>
+      </div>
+    </header>
+
+    <ol class="stepper" aria-label="Avance de la emergencia">
+      @for (paso of pasos; track paso; let i = $index) {
+        <li [class.is-active]="i === indice()" [class.is-done]="i < indice()">{{ etiquetaEtapa[paso] }}</li>
+      }
+    </ol>
+
+    @if (exito()) {
+      <div class="alert alert-success" role="status">{{ exito() }}</div>
+    }
+
+    <section class="card">
+      <h2 class="card-title">Descripción</h2>
+      <p>{{ s.emergencia.descripcion }}</p>
+      @if (s.emergencia.convocatoria; as c) {
+        <p class="text-muted text-sm">
+          Ronda {{ c.ronda }} ·
+          @if (c.fechaApertura && c.fechaCierre) {
+            Ofertas desde el {{ c.fechaApertura | date: 'dd/MM/yyyy HH:mm' }} hasta el {{ c.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}
+          } @else {
+            Convocatoria sin publicar
+          }
+          @if (c.coberturaParcialAceptada) {
+            · Se aceptó la cobertura parcial
+          }
+        </p>
+      }
+    </section>
+
+    <!-- ===== Decisión ante cobertura insuficiente ===== -->
+    @if (s.emergencia.puedeDecidir) {
+      <section class="card" aria-labelledby="titulo-decision">
+        <h2 class="card-title" id="titulo-decision">Decisión</h2>
+        <p class="card-subtitle">Las ofertas no cubren lo necesario. Elegí cómo continuar.</p>
+
+        @if (errorDecision()) {
+          <div class="alert alert-error" role="alert">{{ errorDecision() }}</div>
+        }
+
+        <div class="stack">
+          <div class="opcion">
+            <label class="opcion-label">
+              <input type="radio" name="accion" [checked]="accion() === 'REABRIR'" (change)="elegirAccion('REABRIR')">
+              Reabrir la convocatoria
+            </label>
+            <p class="field-help">Las organizaciones pueden volver a ofertar hasta la nueva fecha.</p>
+          </div>
+          <div class="opcion">
+            <label class="opcion-label">
+              <input type="radio" name="accion" [checked]="accion() === 'REFORMULAR'" (change)="elegirAccion('REFORMULAR')">
+              Reformular lotes
+            </label>
+            <p class="field-help">Se reemplazan los lotes pedidos y se reabre la convocatoria.</p>
+          </div>
+          <div class="opcion">
+            <label class="opcion-label">
+              <input type="radio" name="accion" [checked]="accion() === 'CONTINUAR_PARCIAL'" (change)="elegirAccion('CONTINUAR_PARCIAL')">
+              Continuar con cobertura parcial
+            </label>
+            <p class="field-help">Se sigue adelante con las ofertas recibidas, aunque no cubran todo.</p>
+          </div>
+
+          @if (accion() !== 'CONTINUAR_PARCIAL') {
+            <div class="field">
+              <label for="nuevoCierre" class="field-required">Nuevo cierre de la ventana de ofertas</label>
+              <input type="datetime-local" id="nuevoCierre" [formControl]="fechaCierre">
+              <p class="field-help">Tiene que ser una fecha futura.</p>
+            </div>
+          }
+
+          @if (accion() === 'REFORMULAR') {
+            <form [formGroup]="lotesForm" class="stack">
+              <div class="table-wrap">
+                <table class="table table-edit">
+                  <thead>
+                    <tr><th>Tipo de recurso</th><th class="num">Cantidad</th><th>Descripción</th><th class="col-actions"><span class="text-muted">Quitar</span></th></tr>
+                  </thead>
+                  <tbody formArrayName="lotes">
+                    @for (lote of lotes.controls; track lote; let i = $index) {
+                      <tr [formGroupName]="i">
+                        <td>
+                          <select formControlName="tipoRecursoId" [attr.aria-label]="'Tipo de recurso del lote ' + (i + 1)">
+                            <option [ngValue]="null" disabled>Elegí…</option>
+                            @for (t of tiposRecurso(); track t.id) {
+                              <option [ngValue]="t.id">{{ t.nombre }}</option>
+                            }
+                          </select>
+                        </td>
+                        <td class="col-qty">
+                          <input type="number" min="1" formControlName="cantidad" [attr.aria-label]="'Cantidad del lote ' + (i + 1)">
+                        </td>
+                        <td>
+                          <input type="text" formControlName="descripcion" [attr.aria-label]="'Descripción del lote ' + (i + 1)">
+                        </td>
+                        <td class="col-actions">
+                          <button type="button" class="btn btn-ghost btn-sm" [disabled]="lotes.length === 1" (click)="quitarLote(i)">Quitar</button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="row">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="agregarLote()">+ Agregar lote</button>
+                <span class="text-muted text-sm">{{ lotes.length }} lote(s)</span>
+              </div>
+            </form>
+          }
+
+          @if (confirmandoParcial()) {
+            <div class="alert alert-warning" role="alertdialog" aria-live="polite">
+              <span class="alert-title">Confirmá que querés continuar con cobertura parcial</span>
+              No se vuelve a abrir la convocatoria. Se sigue con las ofertas que ya llegaron.
+              <div class="form-actions">
+                <button type="button" class="btn btn-ghost" [disabled]="enviando()" (click)="cancelarConfirmacion()">Cancelar</button>
+                <button type="button" class="btn btn-primary" [class.is-loading]="enviando()" [disabled]="enviando()" (click)="aplicar()">Sí, continuar</button>
+              </div>
+            </div>
+          } @else {
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" [class.is-loading]="enviando()" [disabled]="enviando()" (click)="aplicar()">
+                {{ enviando() ? 'Aplicando…' : 'Aplicar decisión' }}
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <section class="card">
+      <h2 class="card-title">Cobertura de lotes</h2>
+      @if (s.emergencia.lotes.length === 0) {
+        <div class="empty-state">
+          <p class="empty-state-title">Todavía no hay lotes relevados</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Recurso</th><th class="num">Requerida</th><th class="num">Ofertada</th><th class="num">Validada</th><th class="num">Adjudicada</th></tr>
+            </thead>
+            <tbody>
+              @for (l of s.emergencia.lotes; track l.necesidadId) {
+                <tr>
+                  <td>{{ l.tipoRecurso }}<div class="text-muted text-sm">{{ l.descripcion }}</div></td>
+                  <td class="num">{{ l.cantidadRequerida }}</td>
+                  <td class="num">{{ l.cantidadOfertada ?? '-' }}</td>
+                  <td class="num">{{ l.cantidadValidada }}</td>
+                  <td class="num">{{ l.cantidadAdjudicada }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Ofertas recibidas</h2>
+      @if (s.ofertas.length === 0) {
+        <div class="empty-state">
+          <p class="empty-state-title">Todavía no hay ofertas</p>
+          <p>Las ofertas aparecen cuando las organizaciones respondan a la convocatoria.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Organización</th><th>Recurso</th><th class="num">Cantidad</th><th>Estado</th><th>Versión</th></tr>
+            </thead>
+            <tbody>
+              @for (o of s.ofertas; track o.id) {
+                <tr>
+                  <td>
+                    {{ o.organizacion }}
+                    @if (o.ofertaConjuntaId || o.conjunta) {
+                      <div class="text-muted text-sm">Parte de una oferta conjunta</div>
+                    }
+                  </td>
+                  <td>{{ o.tipoRecurso }}</td>
+                  <td class="num">{{ o.cantidad }}</td>
+                  <td><span [class]="'badge ' + claseEstado[o.estado]">{{ etiquetaEstado[o.estado] }}</span></td>
+                  <td>v{{ o.numeroVersion }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    @if (adjudicadas().length > 0) {
+      <section class="card">
+        <h2 class="card-title">Ejecución</h2>
+        <p class="card-subtitle">{{ finalizadas() }} de {{ adjudicadas().length }} actividades finalizadas.</p>
+        <div class="progress" role="progressbar" aria-label="Avance de ejecución" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progreso()">
+          <div class="progress-fill" [style.width.%]="progreso()"></div>
+        </div>
+        <div class="stack">
+          @for (o of adjudicadas(); track o.id) {
+            <div class="list-item">
+              <div class="list-item-main">
+                <strong>{{ o.organizacion }}</strong> · {{ o.cantidad }} {{ o.tipoRecurso }}
+                @if (o.estado === 'FINALIZADA') {
+                  <div class="text-muted text-sm">
+                    Finalizada el {{ o.fechaFinalizacion | date: 'dd/MM/yyyy HH:mm' }}
+                    @if (o.informeFinalizacion) {
+                      · {{ o.informeFinalizacion }}
+                    }
+                  </div>
+                } @else {
+                  <div class="text-muted text-sm">Adjudicada el {{ o.fechaAdjudicacion | date: 'dd/MM/yyyy' }}. Actividad en curso.</div>
+                }
+              </div>
+              <span [class]="'badge ' + claseEstado[o.estado]">{{ etiquetaEstado[o.estado] }}</span>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  }
+</div>

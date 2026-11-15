@@ -1,0 +1,63 @@
+<!-- [Entrega final] Vista de las emergencias del Municipio -->
+<div class="ef page">
+  <header class="page-header row row-between">
+    <div>
+      <h1>Mis emergencias</h1>
+      <p>Seguí el avance de las emergencias que registraste.</p>
+    </div>
+    <a class="btn btn-primary" routerLink="/municipio/nueva">Registrar emergencia</a>
+  </header>
+
+  @if (cargando()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando tus emergencias…</div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar tus emergencias</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (emergencias().length === 0) {
+    <div class="empty-state">
+      <p class="empty-state-title">Todavía no registraste emergencias</p>
+      <p>Cuando registres una, el Centro Coordinador la releva y se abre la convocatoria a las organizaciones.</p>
+      <p><a class="btn btn-primary btn-sm" routerLink="/municipio/nueva">Registrar emergencia</a></p>
+    </div>
+  } @else {
+    @if (porSeleccionar() > 0) {
+      <div class="alert alert-warning" role="status">
+        <span class="alert-title">Hay ofertas esperando tu decisión</span>
+        Tenés {{ porSeleccionar() }} {{ porSeleccionar() === 1 ? 'emergencia' : 'emergencias' }} con ofertas para seleccionar.
+      </div>
+    }
+
+    <div class="chips" role="group" aria-label="Filtrar por etapa">
+      <button type="button" class="chip" [class.is-active]="filtro() === null" (click)="filtrar(null)">Todas ({{ emergencias().length }})</button>
+      @for (etapa of etapasPresentes(); track etapa) {
+        <button type="button" class="chip" [class.is-active]="filtro() === etapa" (click)="filtrar(etapa)">{{ etiquetaEtapa[etapa] }}</button>
+      }
+    </div>
+
+    <section class="card">
+      @for (e of visibles(); track e.id) {
+        <div class="list-item">
+          <div class="list-item-main">
+            <div class="row">
+              <strong>Emergencia N° {{ e.id }} · {{ e.tipoDesastre }}</strong>
+              <span [class]="'badge ' + claseGravedad(e.nivelGravedad)">{{ e.nivelGravedad }}</span>
+              <span [class]="'badge ' + claseEtapa[e.etapa]">{{ etiquetaEtapa[e.etapa] }}</span>
+            </div>
+            <div class="text-muted text-sm">
+              {{ e.zonaAfectada }} · Registrada el {{ e.fechaCreacion | date: 'dd/MM/yyyy' }}
+              @if (e.fechaCierre) {
+                · Cierre de ofertas: {{ e.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}
+              }
+            </div>
+          </div>
+          <a class="btn btn-secondary btn-sm" [routerLink]="['/municipio/emergencias', e.id]">Ver detalle</a>
+        </div>
+      } @empty {
+        <p class="text-muted">No hay emergencias en esa etapa.</p>
+      }
+    </section>
+  }
+</div>

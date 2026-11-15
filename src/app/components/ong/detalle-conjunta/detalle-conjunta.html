@@ -1,0 +1,100 @@
+<!-- [Entrega final] Vista del detalle de una oferta conjunta -->
+<div class="ef page">
+  <p><a routerLink="/ong/ofertas-conjuntas">&larr; Volver a ofertas conjuntas</a></p>
+
+  @if (cargando() && !conjunta()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando la oferta conjunta…</div>
+  } @else if (noEncontrada()) {
+    <div class="empty-state">
+      <p class="empty-state-title">No encontramos la oferta conjunta</p>
+      <p><a class="btn btn-secondary btn-sm" routerLink="/ong/ofertas-conjuntas">Volver al listado</a></p>
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar la oferta conjunta</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (conjunta(); as c) {
+    <header class="page-header">
+      <h1>Oferta conjunta N° {{ c.id }}</h1>
+      <p>
+        Emergencia N° {{ c.emergenciaId }} · {{ c.tipoDesastre }} · Organiza {{ c.organizacionDuena.nombre }} ·
+        Cierre: {{ c.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}
+      </p>
+    </header>
+
+    @if (recienCreada) {
+      <div class="alert alert-success" role="status">Oferta conjunta creada. Ahora cada ONG puede cargar sus lotes.</div>
+    }
+
+    @if (c.valida) {
+      <div class="alert alert-success" role="status">
+        <span class="alert-title">La oferta conjunta es válida</span>
+        Todas las ONGs cargaron al menos un lote, así que sus lotes cuentan para la cobertura.
+      </div>
+    } @else {
+      <div class="alert alert-warning" role="status">
+        <span class="alert-title">La oferta conjunta todavía no es válida</span>
+        Mientras falten lotes, ninguno de los lotes cuenta para la cobertura ni lo ve el municipio.
+        @if (c.faltan.length > 0) {
+          Faltan lotes de: <strong>{{ c.faltan.join(', ') }}</strong>.
+        }
+      </div>
+    }
+
+    <section class="card">
+      <h2 class="card-title">ONGs asociadas</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Organización</th><th class="num">Lotes cargados</th></tr>
+          </thead>
+          <tbody>
+            @for (p of c.participantes; track p.organizacionId) {
+              <tr>
+                <td>
+                  {{ p.nombre }}
+                  @if (p.organizacionId === c.organizacionDuena.id) {
+                    <span class="badge">Dueña</span>
+                  }
+                </td>
+                <td class="num">{{ p.lotesCargados }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="field-help">La lista de ONGs no se puede cambiar una vez creada la oferta conjunta.</p>
+    </section>
+
+    <section class="card">
+      <div class="row row-between">
+        <h2 class="card-title">Lotes</h2>
+        @if (c.ventanaAbierta) {
+          <a class="btn btn-primary btn-sm" [routerLink]="['/ong/convocatorias', c.convocatoriaId, 'ofertar']" [queryParams]="{ ofertaConjuntaId: c.id }">Cargar lote</a>
+        }
+      </div>
+      @if (!c.ventanaAbierta) {
+        <p class="text-muted text-sm">La convocatoria ya cerró: no se pueden cargar más lotes.</p>
+      }
+      @for (l of c.lotes; track l.id) {
+        <div class="list-item">
+          <div class="list-item-main">
+            <div class="row">
+              <strong>{{ l.cantidad }} {{ l.tipoRecurso }}</strong>
+              <span [class]="'badge ' + claseEstado[l.estado]">{{ etiquetaEstado[l.estado] }}</span>
+              <span class="text-muted text-sm">{{ l.organizacion }}</span>
+            </div>
+            <div class="text-muted text-sm">{{ l.descripcion }}</div>
+          </div>
+          <a class="btn btn-secondary btn-sm" [routerLink]="['/ong/ofertas', l.id]">Ver</a>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p class="empty-state-title">Todavía no hay lotes cargados</p>
+        </div>
+      }
+    </section>
+  }
+</div>

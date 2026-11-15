@@ -1,16 +1,20 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AltaEmergencia } from './alta-emergencia';
+import { provideRouter } from '@angular/router';
+import { AltaEmergenciaComponent } from './alta-emergencia';
 
 describe('AltaEmergencia', () => {
-  let component: AltaEmergencia;
-  let fixture: ComponentFixture<AltaEmergencia>;
+  let component: AltaEmergenciaComponent;
+  let fixture: ComponentFixture<AltaEmergenciaComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AltaEmergencia],
+      imports: [AltaEmergenciaComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(AltaEmergencia);
+    fixture = TestBed.createComponent(AltaEmergenciaComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

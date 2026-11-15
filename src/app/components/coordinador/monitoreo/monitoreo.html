@@ -1,0 +1,90 @@
+<!-- [Entrega final] Vista del monitoreo del Centro Coordinador -->
+<div class="ef page">
+  <header class="page-header">
+    <h1>Monitoreo de emergencias</h1>
+    <p>Seguí el estado de cada emergencia y resolvé las que necesitan una decisión.</p>
+  </header>
+
+  @if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar el monitoreo</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else {
+    <div class="kpi-grid">
+      <div class="kpi"><span class="kpi-value">{{ abiertas() }}</span><span class="kpi-label">Convocatorias abiertas</span></div>
+      <div class="kpi"><span class="kpi-value">{{ requierenDecision().length }}</span><span class="kpi-label">Requieren decisión</span></div>
+      <div class="kpi"><span class="kpi-value">{{ enEjecucion() }}</span><span class="kpi-label">En ejecución</span></div>
+      <div class="kpi"><span class="kpi-value">{{ finalizadas() }}</span><span class="kpi-label">Finalizadas</span></div>
+    </div>
+
+    @for (f of requierenDecision(); track f.emergenciaId) {
+      <div class="alert alert-warning" role="status">
+        <span class="alert-title">La emergencia N° {{ f.emergenciaId }} requiere una decisión</span>
+        Las ofertas no cubren lo necesario.
+        <a [routerLink]="['/coordinador/emergencias', f.emergenciaId]">Decidir cómo continuar</a>
+      </div>
+    }
+
+    <section class="card">
+      <div class="row row-between">
+        <h2 class="card-title">Emergencias</h2>
+        <div class="field field-inline">
+          <label for="filtroEtapa">Etapa</label>
+          <select id="filtroEtapa" [value]="etapa()" (change)="cambiarEtapa($any($event.target).value)">
+            <option value="">Todas</option>
+            @for (e of etapas; track e) {
+              <option [value]="e">{{ etiquetaEtapa[e] }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      @if (cargando()) {
+        <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando emergencias…</div>
+      } @else if (filas().length === 0) {
+        <div class="empty-state">
+          <p class="empty-state-title">No hay emergencias registradas</p>
+          <p>Cuando el Municipio registre una, aparece acá.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>N°</th><th>Tipo</th><th>Gravedad</th><th>Etapa</th><th>Cierre de ofertas</th>
+                <th>Lotes cubiertos</th><th>Ejecución</th><th class="col-actions"><span class="sr-only">Acción</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (f of filas(); track f.emergenciaId) {
+                <tr>
+                  <td>{{ f.emergenciaId }}</td>
+                  <td>{{ f.tipoDesastre }}<div class="text-muted text-sm">{{ f.zonaAfectada }}</div></td>
+                  <td><span [class]="'badge ' + claseGravedad(f.nivelGravedad)">{{ f.nivelGravedad }}</span></td>
+                  <td><span [class]="'badge ' + claseEtapa[f.etapa]">{{ etiquetaEtapa[f.etapa] }}</span></td>
+                  <td>{{ f.fechaCierre ? (f.fechaCierre | date: 'dd/MM/yyyy HH:mm') : '-' }}</td>
+                  <td>{{ f.lotesCubiertos }}/{{ f.lotesTotales }}</td>
+                  <td>
+                    <div class="progress" role="progressbar" aria-label="Avance de ejecución" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="f.progresoEjecucion">
+                      <div class="progress-fill" [style.width.%]="f.progresoEjecucion"></div>
+                    </div>
+                    <span class="text-muted text-sm">{{ f.progresoEjecucion }}%</span>
+                  </td>
+                  <td class="col-actions">
+                    @if (esRelevamiento(f)) {
+                      <a class="btn btn-primary btn-sm" routerLink="/coordinador/convocatorias">Relevar</a>
+                    } @else {
+                      <a class="btn btn-secondary btn-sm" [routerLink]="['/coordinador/emergencias', f.emergenciaId]">Ver seguimiento</a>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+</div>

@@ -1,0 +1,34 @@
+<!-- [Entrega final] Barra de navegación con el menú del perfil -->
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand" [routerLink]="auth.rutaInicio()">RescueSync</a>
+    <button type="button" class="navbar-toggle" aria-controls="menu-principal" aria-label="Abrir o cerrar el menú"
+            [attr.aria-expanded]="menuAbierto()" (click)="alternarMenu()">
+      <span class="navbar-toggle-icon" aria-hidden="true"></span>
+    </button>
+    <div id="menu-principal" class="navbar-menu" [class.is-open]="menuAbierto()">
+      <nav aria-label="Navegación principal">
+        <ul class="navbar-links">
+          @for (item of menu(); track item.ruta) {
+            <li>
+              <a [routerLink]="item.ruta" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: !!item.exacto }">
+                {{ item.etiqueta }}
+                @if (item.ruta === '/ong/notificaciones' && notificaciones.noLeidas() > 0) {
+                  <span class="badge badge-info" [attr.aria-label]="notificaciones.noLeidas() + ' sin leer'">{{ notificaciones.noLeidas() }}</span>
+                }
+              </a>
+            </li>
+          }
+        </ul>
+      </nav>
+      <div class="navbar-user">
+        <span class="text-sm text-muted">{{ descripcionUsuario() }}</span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cerrarSesion()">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <router-outlet />
+</main>

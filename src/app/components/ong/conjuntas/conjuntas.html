@@ -1,0 +1,50 @@
+<!-- [Entrega final] Vista del listado de ofertas conjuntas -->
+<div class="ef page">
+  <header class="page-header">
+    <div class="row row-between">
+      <h1>Ofertas conjuntas</h1>
+      <a class="btn btn-primary" routerLink="/ong/ofertas-conjuntas/nueva">Crear oferta conjunta</a>
+    </div>
+    <p>Ofertas que armaste con otras ONGs o en las que te sumaron como participante.</p>
+  </header>
+
+  @if (cargando()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando ofertas conjuntas…</div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar las ofertas conjuntas</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else {
+    <section class="card">
+      @for (c of conjuntas(); track c.id) {
+        <div class="list-item">
+          <div class="list-item-main">
+            <div class="row">
+              <strong>Oferta conjunta N° {{ c.id }} · Emergencia N° {{ c.emergenciaId }} · {{ c.tipoDesastre }}</strong>
+              @if (c.valida) {
+                <span class="badge badge-validada">Válida</span>
+              } @else {
+                <span class="badge badge-pendiente">Incompleta</span>
+              }
+              <span class="badge">{{ c.esDuena ? 'Sos la dueña' : 'Participás' }}</span>
+            </div>
+            <div class="text-muted text-sm">
+              Organiza {{ c.organizacionDuena.nombre }} · {{ c.participantes.length }} ONGs · Cierre: {{ c.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}
+            </div>
+            @if (!c.valida && c.faltan.length > 0) {
+              <div class="text-sm">Faltan lotes de: {{ c.faltan.join(', ') }}</div>
+            }
+          </div>
+          <a class="btn btn-secondary btn-sm" [routerLink]="['/ong/ofertas-conjuntas', c.id]">Ver</a>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p class="empty-state-title">Todavía no tenés ofertas conjuntas</p>
+          <p>Creá una eligiendo las ONGs con las que querés ofertar.</p>
+        </div>
+      }
+    </section>
+  }
+</div>

@@ -1,0 +1,38 @@
+<!-- [Entrega final] Vista del inicio de sesión -->
+<div class="login-page">
+  <div class="page page-narrow">
+    <header class="page-header login-header">
+      <h1>RescueSync</h1>
+      <p>Coordinación de ayuda ante emergencias. Ingresá con tu usuario.</p>
+    </header>
+
+    <section class="card">
+      @if (expirada) {
+        <div class="alert alert-info" role="status">Tu sesión expiró. Ingresá nuevamente.</div>
+      }
+      @if (error()) {
+        <div class="alert alert-error" role="alert">{{ error() }}</div>
+      }
+
+      <form class="stack" [formGroup]="form" (ngSubmit)="ingresar()" novalidate>
+        <div class="field">
+          <label for="username" class="field-required">Usuario</label>
+          <input type="text" id="username" formControlName="username" autocomplete="username" autocapitalize="none" spellcheck="false">
+          @if (invalido('username')) {
+            <p class="field-error">Ingresá tu usuario.</p>
+          }
+        </div>
+        <div class="field">
+          <label for="password" class="field-required">Contraseña</label>
+          <input type="password" id="password" formControlName="password" autocomplete="current-password">
+          @if (invalido('password')) {
+            <p class="field-error">Ingresá tu contraseña.</p>
+          }
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" [class.is-loading]="enviando()" [disabled]="enviando()">
+          {{ enviando() ? 'Ingresando…' : 'Ingresar' }}
+        </button>
+      </form>
+    </section>
+  </div>
+</div>

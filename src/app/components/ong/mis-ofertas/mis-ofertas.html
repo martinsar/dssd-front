@@ -1,0 +1,71 @@
+<!-- [Entrega final] Vista de las ofertas de la organización -->
+<div class="ef page">
+  <header class="page-header">
+    <h1>Mis ofertas</h1>
+    <p>Los lotes que cargaste, solo o junto con otras ONGs en una oferta conjunta.</p>
+  </header>
+
+  @if (cargando()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando tus ofertas…</div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar tus ofertas</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else {
+    <div class="tabs" role="tablist" aria-label="Situación de las ofertas">
+      @for (p of pestanas; track p.clave) {
+        <button type="button" role="tab" class="tab" [class.is-active]="pestana() === p.clave"
+                [attr.aria-selected]="pestana() === p.clave" (click)="elegir(p.clave)">
+          {{ p.etiqueta }} ({{ cantidad(p.clave) }})
+        </button>
+      }
+    </div>
+
+    <section class="card">
+      @for (o of visibles(); track o.id) {
+        <div class="list-item">
+          <div class="list-item-main">
+            <div class="row">
+              <strong>Emergencia N° {{ o.emergenciaId }} · {{ o.tipoDesastre }}</strong>
+              <span [class]="'badge ' + claseEstado[o.estado]">{{ etiquetaEstado[o.estado] }}</span>
+              @if (o.ofertaConjuntaId) {
+                <span class="badge">Oferta conjunta N° {{ o.ofertaConjuntaId }}</span>
+              }
+              <span class="text-muted text-sm">v{{ o.numeroVersion }}</span>
+            </div>
+            <div>
+              {{ o.cantidad }} {{ o.tipoRecurso }}
+              @if (o.ofertaConjuntaId && !o.conjuntaValida) {
+                <span class="text-muted">(la oferta conjunta todavía no es válida)</span>
+              }
+              @if (o.fueraDeEspecialidad) {
+                <span class="text-muted">(fuera de tus especialidades)</span>
+              }
+            </div>
+            <div class="text-muted text-sm">
+              {{ o.zonaAfectada }} · Cierre de la convocatoria: {{ o.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}
+            </div>
+          </div>
+          <div class="row">
+            <a class="btn btn-secondary btn-sm" [routerLink]="['/ong/ofertas', o.id]">Ver</a>
+            @if (o.puedeEditar) {
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/ong/ofertas', o.id, 'editar']">Editar</a>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          @if (ofertas().length === 0) {
+            <p class="empty-state-title">Todavía no cargaste lotes</p>
+            <p>Mirá las convocatorias abiertas y ofrecé lo que tu organización puede aportar.</p>
+            <p><a class="btn btn-primary btn-sm" routerLink="/ong">Ver convocatorias abiertas</a></p>
+          } @else {
+            <p class="empty-state-title">No hay ofertas en esta sección</p>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>

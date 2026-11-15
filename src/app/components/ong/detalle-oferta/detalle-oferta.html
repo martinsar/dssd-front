@@ -1,0 +1,123 @@
+<!-- [Entrega final] Vista del detalle de un lote -->
+<div class="ef page">
+  <p><a routerLink="/ong/ofertas">&larr; Volver a mis ofertas</a></p>
+
+  @if (cargando() && !oferta()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando el lote…</div>
+  } @else if (noEncontrada()) {
+    <div class="empty-state">
+      <p class="empty-state-title">No encontramos el lote</p>
+      <p><a class="btn btn-secondary btn-sm" routerLink="/ong/ofertas">Volver a mis ofertas</a></p>
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar el lote</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (oferta(); as o) {
+    <header class="page-header">
+      <h1>Lote para la emergencia N° {{ o.emergenciaId }}</h1>
+      <div class="row">
+        <span [class]="'badge ' + claseEstado[o.estado]">{{ etiquetaEstado[o.estado] }}</span>
+        @if (o.ofertaConjuntaId) {
+          <a class="badge badge-info" [routerLink]="['/ong/ofertas-conjuntas', o.ofertaConjuntaId]">Oferta conjunta N° {{ o.ofertaConjuntaId }}</a>
+        }
+        <span class="text-muted text-sm">Versión {{ o.numeroVersion }}</span>
+      </div>
+    </header>
+
+    @if (recienCreada) {
+      <div class="alert alert-success" role="status">Lote cargado correctamente.</div>
+    }
+    @if (mostrarAvisoEspecialidad(o)) {
+      <div class="alert alert-warning" role="status">Este recurso no está entre tus especialidades; puede no ser validado.</div>
+    }
+    @if (o.ofertaConjuntaId && !o.conjuntaValida) {
+      <div class="alert alert-info" role="status">
+        La oferta conjunta todavía no es válida, así que este lote no cuenta para la cobertura. Revisá qué ONGs faltan en
+        <a [routerLink]="['/ong/ofertas-conjuntas', o.ofertaConjuntaId]">el detalle de la oferta conjunta</a>.
+      </div>
+    }
+    @if (errorAccion()) {
+      <div class="alert alert-error" role="alert">{{ errorAccion() }}</div>
+    }
+
+    <section class="card">
+      <h2 class="card-title">Resumen</h2>
+      <dl class="datos">
+        <div><dt>Emergencia</dt><dd>{{ o.tipoDesastre }} · {{ o.zonaAfectada }}</dd></div>
+        <div><dt>Recurso</dt><dd>{{ o.tipoRecurso }}</dd></div>
+        <div><dt>Cantidad</dt><dd>{{ o.cantidad }}</dd></div>
+        <div><dt>Organización</dt><dd>{{ o.organizacion }}</dd></div>
+        <div><dt>Descripción</dt><dd>{{ o.descripcion }}</dd></div>
+        <div><dt>Cierre de la convocatoria</dt><dd>{{ o.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+        <div><dt>Cargado el</dt><dd>{{ o.fechaCreacion | date: 'dd/MM/yyyy' }}</dd></div>
+      </dl>
+
+      <div class="form-actions">
+        @if (o.puedeEditar) {
+          <a class="btn btn-secondary" [routerLink]="['/ong/ofertas', o.id, 'editar']">Editar</a>
+          <button type="button" class="btn btn-ghost" [disabled]="accionEnCurso()" (click)="pedirRetiro()">Retirar lote</button>
+        }
+        @if (o.puedeFinalizar && !finalizando()) {
+          <button type="button" class="btn btn-primary" (click)="abrirFinalizacion()">Marcar actividad como finalizada</button>
+        }
+      </div>
+
+      @if (confirmandoRetiro()) {
+        <div class="alert alert-warning" role="alertdialog" aria-live="polite">
+          <span class="alert-title">¿Querés retirar este lote?</span>
+          Deja de contar para la convocatoria y no se puede deshacer.
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost" [disabled]="accionEnCurso()" (click)="cancelarRetiro()">Cancelar</button>
+            <button type="button" class="btn btn-danger" [class.is-loading]="accionEnCurso()" [disabled]="accionEnCurso()" (click)="retirar()">Sí, retirar</button>
+          </div>
+        </div>
+      }
+
+      @if (finalizando()) {
+        <div class="alert alert-info" role="alertdialog" aria-live="polite">
+          <span class="alert-title">Marcar la actividad como finalizada</span>
+          <div class="field">
+            <label for="informe">Informe (opcional)</label>
+            <textarea id="informe" rows="3" [formControl]="informe" placeholder="Ej: Se entregaron 300 bidones."></textarea>
+            <p class="field-help">Hasta 500 caracteres.</p>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost" [disabled]="accionEnCurso()" (click)="cancelarFinalizacion()">Cancelar</button>
+            <button type="button" class="btn btn-primary" [class.is-loading]="accionEnCurso()" [disabled]="accionEnCurso()" (click)="finalizar()">Confirmar finalización</button>
+          </div>
+        </div>
+      }
+    </section>
+
+    @if (o.estado === 'FINALIZADA') {
+      <section class="card">
+        <h2 class="card-title">Actividad finalizada</h2>
+        <p>Finalizada el {{ o.fechaFinalizacion | date: 'dd/MM/yyyy HH:mm' }}.</p>
+        @if (o.informeFinalizacion) {
+          <p>{{ o.informeFinalizacion }}</p>
+        }
+      </section>
+    }
+
+    <section class="card">
+      <h2 class="card-title">Historial de versiones</h2>
+      @if (versiones().length === 0) {
+        <p class="text-muted">Todavía no hay cambios registrados.</p>
+      } @else {
+        <ol class="timeline">
+          @for (v of versiones(); track v.numeroVersion) {
+            <li>
+              <div class="timeline-title">Versión {{ v.numeroVersion }} · {{ v.motivo }}</div>
+              <div class="text-muted text-sm">{{ v.fechaHora | date: 'dd/MM/yyyy HH:mm' }} · {{ v.usuario ?? 'Sistema' }}</div>
+              <div class="text-sm">{{ v.cantidad }} {{ v.tipoRecurso }} · {{ etiquetaEstado[v.estado] }}</div>
+              <div class="text-muted text-sm">{{ v.descripcion }}</div>
+            </li>
+          }
+        </ol>
+      }
+    </section>
+  }
+</div>
