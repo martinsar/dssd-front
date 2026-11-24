@@ -25,7 +25,7 @@
   </header>
 
   <!-- Gate de autenticación para rol AUDITOR -->
-  @if (!authService.estaAutenticado() || !authService.esAuditor()) {
+  @if (!estaAutenticado() || !esAuditor()) {
     <section class="auth-card">
       <div class="auth-header">
         <h2>Acceso de Auditor</h2>
@@ -35,7 +35,7 @@
         </p>
       </div>
 
-      @if (authService.estaAutenticado() && !authService.esAuditor()) {
+      @if (estaAutenticado() && !esAuditor()) {
         <div class="alert-error">
           Tu sesión actual pertenece al rol <strong>{{ authService.usuario()?.rol }}</strong>. Cerrá sesión o ingresá
           con un usuario con perfil <strong>AUDITOR</strong>.

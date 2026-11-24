@@ -1,0 +1,114 @@
+<!-- [Entrega final] Vista del inventario de la organización -->
+<div class="ef page">
+  <header class="page-header">
+    <h1>Inventario</h1>
+    <p>Los recursos que tu organización tiene disponibles. Sirve de referencia al ofertar.</p>
+  </header>
+
+  @if (cargando()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando el inventario…</div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar el inventario</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else {
+    @if (errorAccion()) {
+      <div class="alert alert-error" role="alert">{{ errorAccion() }}</div>
+    }
+    @if (exito()) {
+      <div class="alert alert-success" role="status">{{ exito() }}</div>
+    }
+
+    <section class="card">
+      <h2 class="card-title">Recursos disponibles</h2>
+      @if (items().length === 0) {
+        <div class="empty-state">
+          <p class="empty-state-title">Cargá los recursos que tu organización tiene disponibles.</p>
+          <p>Usá el formulario de abajo para agregar el primero.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Recurso</th><th>Disponible</th><th class="num">Ofertado</th><th class="num">Comprometido</th>
+                <th class="num">Libre</th><th>Descripción</th><th>Actualizado</th><th class="col-actions"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (i of items(); track i.tipoRecursoId) {
+                <tr>
+                  <td>{{ i.tipoRecurso }}</td>
+                  <td>
+                    <div class="row inventario-edicion">
+                      <input type="number" min="0" step="1" #cantidad [value]="i.cantidadDisponible" [attr.aria-label]="'Cantidad disponible de ' + i.tipoRecurso">
+                      <button type="button" class="btn btn-secondary btn-sm" [class.is-loading]="enCurso() === i.tipoRecursoId"
+                              [disabled]="enCurso() !== null" (click)="guardar(i, cantidad.value)">Guardar</button>
+                    </div>
+                  </td>
+                  <td class="num">{{ i.cantidadOfertada }}</td>
+                  <td class="num">{{ i.cantidadComprometida }}</td>
+                  <td class="num">
+                    @if (libre(i) < 0) {
+                      <span class="badge badge-borrador" title="Tenés más comprometido que disponible">{{ libre(i) }}</span>
+                    } @else {
+                      {{ libre(i) }}
+                    }
+                  </td>
+                  <td>{{ i.descripcion ?? '-' }}</td>
+                  <td>{{ i.fechaActualizacion ? (i.fechaActualizacion | date: 'dd/MM/yyyy') : '-' }}</td>
+                  <td class="col-actions">
+                    <button type="button" class="btn btn-ghost btn-sm" [disabled]="enCurso() !== null" (click)="quitar(i)">Quitar</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Agregar recurso</h2>
+      @if (tiposDisponibles().length === 0) {
+        <p class="text-muted">Ya cargaste todos los tipos de recurso disponibles.</p>
+      } @else {
+        <form class="form-grid" [formGroup]="form" (ngSubmit)="agregar()" novalidate>
+          <div class="field">
+            <label for="tipoNuevo" class="field-required">Tipo de recurso</label>
+            <select id="tipoNuevo" formControlName="tipoRecursoId">
+              <option [ngValue]="null" disabled>Elegí un tipo de recurso</option>
+              @for (t of tiposDisponibles(); track t.id) {
+                <option [ngValue]="t.id">{{ t.nombre }}</option>
+              }
+            </select>
+            @if (invalido('tipoRecursoId')) {
+              <p class="field-error">Elegí el tipo de recurso.</p>
+            }
+          </div>
+          <div class="field">
+            <label for="cantidadNueva" class="field-required">Cantidad disponible</label>
+            <input type="number" id="cantidadNueva" min="0" step="1" formControlName="cantidadDisponible">
+            @if (invalido('cantidadDisponible')) {
+              <p class="field-error">Ingresá una cantidad de 0 o más.</p>
+            }
+          </div>
+          <div class="field field-full">
+            <label for="descripcionNueva">Descripción</label>
+            <input type="text" id="descripcionNueva" formControlName="descripcion" placeholder="Ej: Depósito central">
+            @if (invalido('descripcion')) {
+              <p class="field-error">La descripción no puede superar los 255 caracteres.</p>
+            }
+          </div>
+          <div class="field-full">
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" [class.is-loading]="enCurso() === 'nuevo'" [disabled]="enCurso() !== null">Agregar al inventario</button>
+            </div>
+          </div>
+        </form>
+      }
+    </section>
+  }
+</div>

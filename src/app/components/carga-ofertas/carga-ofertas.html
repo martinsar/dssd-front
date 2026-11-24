@@ -1,7 +1,7 @@
 <div class="form-container">
   <div class="form-header">
     <h2>Carga de Oferta</h2>
-    <p>Panel de Representante de ONG</p>
+    <p>Organización: {{ auth.usuario()?.organizacionNombre || 'sin asignar' }}</p>
   </div>
 
   <form [formGroup]="ofertaForm" (ngSubmit)="onSubmit()" class="emergencia-form">
@@ -27,17 +27,6 @@
       </select>
     </div>
 
-    <!-- Desplegable dinámico para Organización -->
-    <div class="form-group">
-      <label for="organizacion_id">Tu Organización</label>
-      <select id="organizacion_id" formControlName="organizacion_id" class="form-control">
-        <option value="" disabled>Seleccione su organización</option>
-        <option *ngFor="let org of organizaciones" [value]="org.id">
-          {{ org.objetoSocial || 'ONG ID: ' + org.id }}
-        </option>
-      </select>
-    </div>
-
     <!-- Desplegable dinámico para Convocatoria -->
     <div class="form-group">
       <label for="convocatoria_id">Convocatoria</label>
@@ -49,8 +38,12 @@
          </select>
     </div>
 
-    <button type="submit" [disabled]="ofertaForm.invalid" class="btn-submit">
-      Registrar Oferta
+    @if (mensaje) {
+      <p [attr.role]="mensaje.tipo === 'error' ? 'alert' : 'status'" [style.color]="mensaje.tipo === 'error' ? '#b3261e' : '#1c7a45'">{{ mensaje.texto }}</p>
+    }
+
+    <button type="submit" [disabled]="ofertaForm.invalid || enviando" class="btn-submit">
+      {{ enviando ? 'Registrando…' : 'Registrar Oferta' }}
     </button>
   </form>
 </div>

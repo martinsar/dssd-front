@@ -1,0 +1,59 @@
+<!-- [Entrega final] Vista de las convocatorias abiertas -->
+<div class="ef page">
+  <header class="page-header">
+    <h1>Convocatorias abiertas</h1>
+    <p>Emergencias que reciben ofertas. Elegí una y ofrecé lo que tu organización puede aportar.</p>
+  </header>
+
+  @if (cargando()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando convocatorias…</div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar las convocatorias</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (convocatorias().length === 0) {
+    <div class="empty-state">
+      <p class="empty-state-title">No hay convocatorias abiertas</p>
+      <p>Te avisamos en Notificaciones cuando se publique una nueva.</p>
+      <p><a class="btn btn-secondary btn-sm" routerLink="/ong/notificaciones">Ver notificaciones</a></p>
+    </div>
+  } @else {
+    @for (c of convocatorias(); track c.convocatoriaId) {
+      <section class="card">
+        <div class="row row-between">
+          <div>
+            <h2 class="card-title">Emergencia N° {{ c.emergenciaId }} · {{ c.tipoDesastre }}</h2>
+            <div class="row">
+              <span [class]="'badge ' + claseGravedad(c.nivelGravedad)">{{ c.nivelGravedad }}</span>
+              <span class="text-muted text-sm">{{ c.zonaAfectada }}</span>
+            </div>
+          </div>
+          <div class="row">
+            <a class="btn btn-primary" [routerLink]="['/ong/convocatorias', c.convocatoriaId, 'ofertar']">Ofertar</a>
+            <a class="btn btn-secondary" [routerLink]="['/ong/ofertas-conjuntas/nueva']" [queryParams]="{ convocatoria: c.convocatoriaId }">Crear oferta conjunta</a>
+          </div>
+        </div>
+        <p class="card-subtitle">
+          Cierra el {{ c.fechaCierre | date: 'dd/MM HH:mm' }} ({{ tiempoRestante(c.fechaCierre) }}). {{ c.descripcion }}
+        </p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Recurso</th><th class="num">Cantidad requerida</th></tr>
+            </thead>
+            <tbody>
+              @for (l of c.lotes; track l.necesidadId) {
+                <tr>
+                  <td>{{ l.tipoRecurso }}<div class="text-muted text-sm">{{ l.descripcion }}</div></td>
+                  <td class="num">{{ l.cantidadRequerida }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+</div>

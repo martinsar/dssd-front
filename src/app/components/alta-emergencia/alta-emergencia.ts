@@ -1,19 +1,25 @@
-import { Component, OnInit } from '@angular/core'; // <-- Importa OnInit
+import { Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { EmergenciaService } from '../../services/emergencia'; 
+import { RouterLink } from '@angular/router';
+import { EmergenciaService } from '../../services/emergencia';
 import { Emergencia } from '../../models/emergencia.model';
-import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-alta-emergencia',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
-  templateUrl: './alta-emergencia.html', 
+  imports: [ReactiveFormsModule, RouterLink],
+  templateUrl: './alta-emergencia.html',
   styleUrl: './alta-emergencia.scss'
 })
-export class AltaEmergenciaComponent implements OnInit { // <-- Agrega implements OnInit
+export class AltaEmergenciaComponent implements OnInit {
   emergenciaForm: FormGroup;
-  tiposEmergencia: any[] = []; // <-- Variable para almacenar los datos del backend
+  tiposEmergencia: any[] = [];
+
+  // [Entrega final] Se muestran los resultados en la pantalla en lugar de alert()
+  readonly enviando = signal(false);
+  readonly intentoEnviar = signal(false);
+  readonly exito = signal<number | null>(null);
+  readonly error = signal<string | null>(null);
 
   constructor(private fb: FormBuilder, private emergenciaService: EmergenciaService) {
     this.emergenciaForm = this.fb.group({
@@ -24,33 +30,34 @@ export class AltaEmergenciaComponent implements OnInit { // <-- Agrega implement
     });
   }
 
-  // <-- Nuevo bloque para cargar datos al inicio
   ngOnInit(): void {
     this.emergenciaService.getTiposEmergencia().subscribe({
-      next: (datos) => {
-        this.tiposEmergencia = datos;
-      },
-      error: (err) => console.error('Error cargando tipos de emergencia:', err)
+      next: (datos) => { this.tiposEmergencia = datos; },
+      error: () => this.error.set('No pudimos cargar los tipos de desastre. Recargá la página.')
     });
   }
 
   onSubmit() {
-    if (this.emergenciaForm.valid) {
-      const nuevaEmergencia: Emergencia = this.emergenciaForm.value;
-      
-      this.emergenciaService.crearEmergencia(nuevaEmergencia).subscribe({
-        next: (respuesta: any) => { 
-          console.log('Respuesta del backend:', respuesta);
-          alert(`¡Emergencia registrada con éxito! ID: ${respuesta.id}`);
-          this.emergenciaForm.reset(); 
-        },
-        error: (err: any) => { 
-          console.error('Error al enviar la petición:', err);
-          alert('Hubo un error al comunicar con el servidor.');
-        }
-      });
-    } else {
-      alert('Por favor, completa todos los campos requeridos.');
+    this.intentoEnviar.set(true);
+    this.exito.set(null);
+    this.error.set(null);
+    if (this.emergenciaForm.invalid) {
+      this.emergenciaForm.markAllAsTouched();
+      return;
     }
+    const nuevaEmergencia: Emergencia = this.emergenciaForm.value;
+    this.enviando.set(true);
+    this.emergenciaService.crearEmergencia(nuevaEmergencia).subscribe({
+      next: (respuesta: any) => {
+        this.enviando.set(false);
+        this.intentoEnviar.set(false);
+        this.exito.set(respuesta?.id ?? null);
+        this.emergenciaForm.reset({ tipoDesastre: '', nivelGravedad: '', zonaAfectada: '', descripcion: '' });
+      },
+      error: (err: any) => {
+        this.enviando.set(false);
+        this.error.set(err?.error?.error ?? err?.error?.message ?? 'No pudimos registrar la emergencia. Intentá de nuevo.');
+      }
+    });
   }
 }

@@ -1,0 +1,16 @@
+<div class="bar-chart" role="group" [attr.aria-label]="titulo()">
+  @for (d of datos(); track d.clave ?? d.etiqueta) {
+    <button type="button" class="bar-row"
+            [class.is-selected]="seleccionada() === (d.clave ?? d.etiqueta)"
+            [attr.aria-label]="d.etiqueta + ': ' + d.valor + ' ' + unidad()"
+            [attr.aria-pressed]="seleccionada() === (d.clave ?? d.etiqueta)"
+            [title]="d.etiqueta + ': ' + d.valor + ' ' + unidad()"
+            (click)="elegir(d)">
+      <span class="bar-label">{{ d.etiqueta }}</span>
+      <span class="bar-track"><span class="bar-fill" [style.width.%]="ancho(d.valor)"></span></span>
+      <span class="bar-value">{{ d.valor }}</span>
+    </button>
+  } @empty {
+    <p class="text-muted text-sm">Sin datos para mostrar.</p>
+  }
+</div>

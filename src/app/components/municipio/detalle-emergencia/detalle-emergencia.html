@@ -1,0 +1,207 @@
+<!-- [Entrega final] Vista del detalle de la emergencia -->
+<div class="ef page">
+  <p><a routerLink="/municipio">&larr; Volver a mis emergencias</a></p>
+
+  @if (cargando() && !detalle()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando la emergencia…</div>
+  } @else if (noEncontrada()) {
+    <div class="empty-state">
+      <p class="empty-state-title">No encontramos la emergencia</p>
+      <p>Puede que no exista o que no la hayas registrado vos.</p>
+      <p><a class="btn btn-secondary btn-sm" routerLink="/municipio">Volver a mis emergencias</a></p>
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar la emergencia</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (detalle(); as d) {
+    <header class="page-header">
+      <h1>Emergencia N° {{ d.id }} · {{ d.tipoDesastre }}</h1>
+      <div class="row">
+        <span [class]="'badge ' + claseGravedad(d.nivelGravedad)">{{ d.nivelGravedad }}</span>
+        <span [class]="'badge ' + claseEtapa[d.etapa]">{{ etiquetaEtapa[d.etapa] }}</span>
+        <span class="text-muted text-sm">{{ d.zonaAfectada }} · Registrada el {{ d.fechaCreacion | date: 'dd/MM/yyyy' }}</span>
+      </div>
+    </header>
+
+    <ol class="stepper" aria-label="Avance de la emergencia">
+      @for (paso of pasos; track paso; let i = $index) {
+        <li [class.is-active]="i === indice()" [class.is-done]="i < indice()">{{ etiquetaEtapa[paso] }}</li>
+      }
+    </ol>
+
+    @if (resultado(); as r) {
+      <div class="alert alert-success" role="status">
+        <span class="alert-title">Selección registrada</span>
+        Se {{ r.seleccionadas === 1 ? 'seleccionó 1 oferta' : 'seleccionaron ' + r.seleccionadas + ' ofertas' }}
+        y {{ r.noSeleccionadas === 1 ? 'quedó 1 oferta' : 'quedaron ' + r.noSeleccionadas + ' ofertas' }} sin seleccionar.
+        La emergencia pasó a la etapa «{{ nombreEtapa(r.etapa) }}» y las organizaciones fueron notificadas.
+      </div>
+    }
+    @if (d.etapa === 'REQUIERE_DECISION') {
+      <div class="alert alert-warning" role="status">
+        Las ofertas no alcanzaron a cubrir lo necesario. El Centro Coordinador está definiendo cómo continuar.
+      </div>
+    }
+
+    <section class="card">
+      <h2 class="card-title">Descripción</h2>
+      <p>{{ d.descripcion }}</p>
+      @if (d.convocatoria; as c) {
+        <p class="text-muted text-sm">
+          @if (c.fechaCierre) {
+            Ofertas recibidas hasta el {{ c.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}
+          } @else {
+            Todavía no se publicó la convocatoria.
+          }
+          @if (c.ronda > 1) {
+            · Convocatoria reabierta (ronda {{ c.ronda }})
+          }
+        </p>
+      }
+      @if (d.proyecto; as p) {
+        <p class="text-sm"><strong>Proyecto:</strong> {{ p.nombre }}
+          · {{ p.estado === 'TERMINADO' ? 'Terminado' : 'En curso' }}</p>
+      }
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Lo que se necesita</h2>
+      @if (d.lotes.length === 0) {
+        <div class="empty-state">
+          <p class="empty-state-title">Todavía no se relevaron las necesidades</p>
+          <p>El Centro Coordinador las va a cargar y publicar la convocatoria.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Recurso</th><th class="num">Requerida</th><th class="num">Validada</th><th class="num">Adjudicada</th></tr>
+            </thead>
+            <tbody>
+              @for (l of d.lotes; track l.necesidadId) {
+                <tr>
+                  <td>{{ l.tipoRecurso }}<div class="text-muted text-sm">{{ l.descripcion }}</div></td>
+                  <td class="num">{{ l.cantidadRequerida }}</td>
+                  <td class="num">{{ l.cantidadValidada }}</td>
+                  <td class="num">{{ l.cantidadAdjudicada }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Ofertas</h2>
+      @if (d.puedeSeleccionar) {
+        <p class="card-subtitle">Marcá las ofertas que querés seleccionar. Las que no marques quedan fuera de esta adjudicación.</p>
+      }
+      @if (errorSeleccion()) {
+        <div class="alert alert-error" role="alert">{{ errorSeleccion() }}</div>
+      }
+
+      @if (errorOfertas()) {
+        <!-- [Entrega final] Se muestra el error con opción de reintentar -->
+        <div class="alert alert-error" role="alert">
+          {{ errorOfertas() }}
+          <button type="button" class="btn btn-ghost btn-sm" (click)="cargarOfertas()">Reintentar</button>
+        </div>
+      } @else if (ofertas().length === 0) {
+        <div class="empty-state">
+          <p class="empty-state-title">Todavía no hay ofertas para mostrar</p>
+          <p>Las ofertas se muestran cuando el Sistema Nacional termine de validarlas.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                @if (d.puedeSeleccionar) {
+                  <th><span class="sr-only">Elegir</span></th>
+                }
+                <th>Organización</th>
+                <th>Recurso</th>
+                <th class="num">Cantidad</th>
+                                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (o of ofertas(); track o.id) {
+                <tr>
+                  @if (d.puedeSeleccionar) {
+                    <td>
+                      @if (o.estado === 'VALIDADA') {
+                        <input type="checkbox" class="check" [checked]="estaElegida(o.id)" (change)="alternar(o.id)"
+                               [attr.aria-label]="'Seleccionar la oferta de ' + o.organizacion">
+                      }
+                    </td>
+                  }
+                  <td>
+                    {{ o.organizacion }}
+                    @if (o.conjunta) {
+                      <div class="text-muted text-sm">Parte de una oferta conjunta</div>
+                    }
+                  </td>
+                  <td>{{ o.tipoRecurso }}</td>
+                  <td class="num">{{ o.cantidad }}</td>
+                  <td><span [class]="'badge ' + claseEstado[o.estado]">{{ etiquetaEstado[o.estado] }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    @if (d.puedeSeleccionar && elegibles().length > 0) {
+      <section class="card">
+        <h2 class="card-title">Cobertura de lo seleccionado</h2>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Recurso</th><th class="num">Requerida</th><th class="num">Seleccionada</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+              @for (c of cobertura(); track c.tipoRecurso) {
+                <tr>
+                  <td>{{ c.tipoRecurso }}</td>
+                  <td class="num">{{ c.requerida }}</td>
+                  <td class="num">{{ c.seleccionada }}</td>
+                  <td>
+                    @if (c.seleccionada >= c.requerida) {
+                      <span class="badge badge-publicada">Cubierto</span>
+                    } @else {
+                      <span class="badge badge-borrador">Faltan {{ c.requerida - c.seleccionada }}</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (confirmando()) {
+          <div class="alert alert-info confirmacion" role="alertdialog" aria-live="polite">
+            <span class="alert-title">Confirmá la selección</span>
+            Vas a seleccionar {{ cantidadElegidas() }} {{ cantidadElegidas() === 1 ? 'oferta' : 'ofertas' }}.
+            {{ cantidadExcluidas() }} {{ cantidadExcluidas() === 1 ? 'oferta queda' : 'ofertas quedan' }} fuera.
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" [disabled]="enviando()" (click)="cancelarConfirmacion()">Cancelar</button>
+              <button type="button" class="btn btn-primary" [class.is-loading]="enviando()" [disabled]="enviando()" (click)="confirmar()">
+                {{ enviando() ? 'Registrando…' : 'Sí, confirmar selección' }}
+              </button>
+            </div>
+          </div>
+        } @else {
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" [disabled]="cantidadElegidas() === 0" (click)="pedirConfirmacion()">Confirmar selección</button>
+          </div>
+        }
+      </section>
+    }
+  }
+</div>

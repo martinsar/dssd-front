@@ -1,13 +1,17 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
-import { authInterceptor } from './interceptors/auth.interceptor';
+import { AuthService } from './core/auth/auth.service';
+import { authInterceptor } from './core/auth/auth.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([authInterceptor]))
+    // [Entrega final] Se agrega el token a cada pedido
+    provideHttpClient(withInterceptors([authInterceptor])),
+    // [Entrega final] Se verifica la sesión guardada antes de navegar
+    provideAppInitializer(() => inject(AuthService).verificarSesionInicial())
   ],
 };

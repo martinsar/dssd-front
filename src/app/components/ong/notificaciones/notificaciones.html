@@ -1,0 +1,47 @@
+<!-- [Entrega final] Vista de las notificaciones -->
+<div class="ef page">
+  <header class="page-header row row-between">
+    <div>
+      <h1>Notificaciones</h1>
+      <p>Novedades sobre convocatorias y adjudicaciones.</p>
+    </div>
+    @if (sinLeer() > 0) {
+      <button type="button" class="btn btn-secondary" [class.is-loading]="marcando()" [disabled]="marcando()" (click)="marcarTodas()">
+        Marcar todas como leídas
+      </button>
+    }
+  </header>
+
+  @if (cargando()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Cargando notificaciones…</div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar las notificaciones</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (lista().length === 0) {
+    <div class="empty-state">
+      <p class="empty-state-title">No tenés notificaciones.</p>
+      <p>Te avisamos cuando haya una nueva convocatoria o una adjudicación.</p>
+    </div>
+  } @else {
+    @if (errorAccion()) {
+      <div class="alert alert-error" role="alert">{{ errorAccion() }}</div>
+    }
+    <ul class="notificaciones">
+      @for (n of lista(); track n.id) {
+        <li>
+          <button type="button" class="notificacion" [class.is-unread]="!n.leida" (click)="abrir(n)">
+            <span class="notificacion-tipo text-muted text-sm">{{ etiquetaTipo[n.tipo] }} · {{ n.fechaHora | date: 'dd/MM/yyyy HH:mm' }}</span>
+            <span class="notificacion-titulo">{{ n.titulo }}</span>
+            <span class="notificacion-mensaje">{{ n.mensaje }}</span>
+          </button>
+          @if (!n.leida) {
+            <button type="button" class="btn btn-ghost btn-sm" (click)="marcarLeida(n)">Marcar como leída</button>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>

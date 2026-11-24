@@ -1,12 +1,14 @@
 import { TestBed } from '@angular/core/testing';
-import { Emergencia } from './emergencia';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { EmergenciaService } from './emergencia';
 
 describe('Emergencia', () => {
-  let service: Emergencia;
+  let service: EmergenciaService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(Emergencia);
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(EmergenciaService);
   });
 
   it('should be created', () => {

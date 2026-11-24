@@ -1,0 +1,148 @@
+<!-- [Entrega final] Vista de los indicadores del auditor -->
+<div class="ef page">
+  <header class="page-header">
+    <h1>Indicadores</h1>
+    <p>Seguimiento de la respuesta ante emergencias en el período elegido.</p>
+  </header>
+
+  <form class="card filtros" (submit)="$event.preventDefault(); cargar()">
+    <div class="field">
+      <label for="desde">Desde</label>
+      <input type="date" id="desde" [formControl]="desde">
+    </div>
+    <div class="field">
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta" [formControl]="hasta">
+    </div>
+    <button type="submit" class="btn btn-primary" [class.is-loading]="cargando()" [disabled]="cargando()">Aplicar</button>
+  </form>
+
+  @if (cargando() && !indicadores()) {
+    <div class="loading-block"><span class="spinner" role="status" aria-label="Cargando"></span> Calculando indicadores…</div>
+  } @else if (error()) {
+    <div class="alert alert-error" role="alert">
+      <span class="alert-title">No pudimos cargar los indicadores</span>
+      {{ error() }}
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="cargar()">Reintentar</button>
+  } @else if (sinDatos()) {
+    <div class="empty-state">
+      <p class="empty-state-title">No hay datos en el período elegido.</p>
+      <p>Probá con otras fechas.</p>
+    </div>
+  } @else if (indicadores(); as ind) {
+    <div class="kpi-grid">
+      <div class="kpi"><span class="kpi-value">{{ ind.totales.emergencias }}</span><span class="kpi-label">Emergencias</span></div>
+      <div class="kpi"><span class="kpi-value">{{ ind.totales.convocatoriasPublicadas }}</span><span class="kpi-label">Convocatorias publicadas</span></div>
+      <div class="kpi"><span class="kpi-value">{{ ind.totales.ofertasRecibidas }}</span><span class="kpi-label">Ofertas recibidas</span></div>
+      <div class="kpi"><span class="kpi-value">{{ ind.totales.ofertasAdjudicadas }}</span><span class="kpi-label">Ofertas adjudicadas</span></div>
+      <div class="kpi"><span class="kpi-value">{{ ind.totales.proyectosEnCurso }}</span><span class="kpi-label">Proyectos en curso</span></div>
+      <div class="kpi"><span class="kpi-value">{{ ind.totales.proyectosFinalizados }}</span><span class="kpi-label">Proyectos finalizados</span></div>
+      <div class="kpi"><span class="kpi-value">{{ ind.totales.suministrosMovilizados }}</span><span class="kpi-label">Suministros movilizados</span></div>
+    </div>
+
+    <div class="charts-grid">
+      <section class="card">
+        <h2 class="card-title">Suministros por tipo</h2>
+        <app-grafico-barras [datos]="suministros()" titulo="Suministros por tipo" unidad="unidades" />
+      </section>
+      <section class="card">
+        <h2 class="card-title">Emergencias por etapa</h2>
+        <p class="card-subtitle">Tocá una barra para filtrar la tabla de abajo.</p>
+        <app-grafico-barras [datos]="porEtapa()" titulo="Emergencias por etapa" unidad="emergencias"
+                            [seleccionada]="etapaFiltro()" (seleccion)="filtrarPorEtapa($event)" />
+      </section>
+      <section class="card">
+        <h2 class="card-title">Ofertas por estado</h2>
+        <app-grafico-barras [datos]="porEstadoOferta()" titulo="Ofertas por estado" unidad="ofertas" />
+      </section>
+      <section class="card">
+        <h2 class="card-title">Emergencias por gravedad</h2>
+        <app-grafico-barras [datos]="porGravedad()" titulo="Emergencias por gravedad" unidad="emergencias" />
+      </section>
+    </div>
+
+    <section class="card">
+      <h2 class="card-title">Resolución mediante ofertas conjuntas</h2>
+      <p class="card-subtitle">Parte de lo adjudicado que se resolvió entre varias organizaciones.</p>
+      <div class="stack">
+        <div>
+          <div class="row row-between">
+            <span>Ofertas en oferta conjunta</span>
+            <strong>{{ ind.ofertasConjuntas.porcentajeOfertas }}%</strong>
+          </div>
+          <div class="progress" role="progressbar" aria-label="Porcentaje de ofertas en ofertas conjuntas" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="ind.ofertasConjuntas.porcentajeOfertas">
+            <div class="progress-fill" [style.width.%]="ind.ofertasConjuntas.porcentajeOfertas"></div>
+          </div>
+          <span class="text-muted text-sm">{{ ind.ofertasConjuntas.adjudicadasEnConjunta }} de {{ ind.ofertasConjuntas.ofertasAdjudicadas }} ofertas adjudicadas</span>
+        </div>
+        <div>
+          <div class="row row-between">
+            <span>Unidades en ofertas conjuntas</span>
+            <strong>{{ ind.ofertasConjuntas.porcentajeUnidades }}%</strong>
+          </div>
+          <div class="progress" role="progressbar" aria-label="Porcentaje de unidades en ofertas conjuntas" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="ind.ofertasConjuntas.porcentajeUnidades">
+            <div class="progress-fill" [style.width.%]="ind.ofertasConjuntas.porcentajeUnidades"></div>
+          </div>
+          <span class="text-muted text-sm">{{ ind.ofertasConjuntas.unidadesEnConjunta }} de {{ ind.ofertasConjuntas.unidadesAdjudicadas }} unidades adjudicadas</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Tiempos promedio por etapa</h2>
+      @if (!ind.tiemposPorEtapa.disponible) {
+        <p class="text-muted">Disponible próximamente.</p>
+      } @else {
+        <app-grafico-barras [datos]="tiempos()" titulo="Tiempos promedio por etapa" unidad="horas" />
+      }
+    </section>
+
+    <section class="card">
+      <div class="row row-between">
+        <h2 class="card-title">Emergencias</h2>
+        <div class="row">
+          @if (etapaFiltro()) {
+            <span class="badge badge-info">Etapa: {{ nombreEtapa(etapaFiltro()!) }}</span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="quitarFiltro()">Quitar filtro</button>
+          }
+          <button type="button" class="btn btn-secondary btn-sm" (click)="exportarIndicadores()">Exportar indicadores (CSV)</button>
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="emergenciasVisibles().length === 0" (click)="exportarEmergencias()">Exportar emergencias (CSV)</button>
+        </div>
+      </div>
+
+      @if (emergenciasVisibles().length === 0) {
+        <div class="empty-state">
+          <p class="empty-state-title">No hay emergencias para mostrar.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>N°</th><th>Tipo</th><th>Gravedad</th><th>Etapa</th><th>Registro</th>
+                <th class="num">Ofertas</th><th class="num">Adjudicadas</th><th class="num">Unidades</th><th class="num">En oferta conjunta</th><th>Proyecto</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (e of emergenciasVisibles(); track e.id) {
+                <tr>
+                  <td>{{ e.id }}</td>
+                  <td>{{ e.tipoDesastre }}<div class="text-muted text-sm">{{ e.zonaAfectada }}</div></td>
+                  <td><span [class]="'badge ' + claseGravedad(e.nivelGravedad)">{{ e.nivelGravedad }}</span></td>
+                  <td><span [class]="'badge ' + claseEtapa[e.etapa]">{{ etiquetaEtapa[e.etapa] }}</span></td>
+                  <td>{{ e.fechaCreacion | date: 'dd/MM/yyyy' }}</td>
+                  <td class="num">{{ e.ofertas }}</td>
+                  <td class="num">{{ e.ofertasAdjudicadas }}</td>
+                  <td class="num">{{ e.unidadesMovilizadas }}</td>
+                  <td class="num">{{ e.ofertasEnConjunta }}</td>
+                  <td>{{ e.proyectoEstado === 'TERMINADO' ? 'Terminado' : e.proyectoEstado === 'EN_CURSO' ? 'En curso' : '-' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+</div>

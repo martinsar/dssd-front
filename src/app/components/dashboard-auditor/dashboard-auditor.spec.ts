@@ -1,9 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { IndicadoresDto } from '../../models/indicadores.model';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { DashboardAuditorComponent } from './dashboard-auditor';
 
 const MOCK_INDICADORES: IndicadoresDto = {
@@ -190,10 +191,10 @@ describe('DashboardAuditorComponent', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
-    localStorage.clear();
+    sessionStorage.clear();
     await TestBed.configureTestingModule({
       imports: [DashboardAuditorComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
@@ -201,7 +202,7 @@ describe('DashboardAuditorComponent', () => {
 
   afterEach(() => {
     httpMock.verify();
-    localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('debería mostrar el formulario de login si no hay sesión de auditor', () => {
@@ -238,7 +239,7 @@ describe('DashboardAuditorComponent', () => {
       },
     });
 
-    expect(auth.esAuditor()).toBe(true);
+    expect(auth.rol()).toBe('AUDITOR');
 
     const indReq = httpMock.expectOne(`${environment.apiUrl}/auditor/indicadores`);
     expect(indReq.request.method).toBe('GET');

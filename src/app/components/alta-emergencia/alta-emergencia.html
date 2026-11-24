@@ -1,45 +1,64 @@
-<div class="form-container">
-  <div class="form-header">
-    <h2>Alta de Emergencia</h2>
-    <p>Panel de control del Municipio / Coordinador</p>
-  </div>
+<!-- [Entrega final] Alta de emergencia con los estilos comunes (.ef) -->
+<div class="ef page page-narrow">
+  <header class="page-header">
+    <h1>Registrar emergencia</h1>
+    <p>Cargá los datos de la emergencia. Al registrarla se inicia el protocolo y se avisa al Centro Coordinador.</p>
+  </header>
 
-  <!-- La etiqueta fundamental que agrupa todo el formulario -->
-  <form [formGroup]="emergenciaForm" (ngSubmit)="onSubmit()" class="emergencia-form">
-    
-    <div class="form-group">
-      <label for="tipoDesastre">Tipo de Desastre</label>
-      <select id="tipoDesastre" formControlName="tipoDesastre" class="form-control">
-        <option value="" disabled>Seleccione un tipo</option>
-        <option *ngFor="let tipo of tiposEmergencia" [value]="tipo.tipoDesastre">
-          {{ tipo.tipoDesastre }}
-        </option>
-      </select>
+  @if (exito(); as e) {
+    <div class="alert alert-success" role="status">
+      <span class="alert-title">Emergencia #{{ e }} registrada</span>
+      El Centro Coordinador ya puede desglosar los lotes. <a routerLink="/municipio">Ver mis emergencias</a>
+    </div>
+  }
+  @if (error()) {
+    <div class="alert alert-error" role="alert">{{ error() }}</div>
+  }
+
+  <form [formGroup]="emergenciaForm" (ngSubmit)="onSubmit()" class="card" novalidate>
+    <div class="form-grid">
+      <div class="field">
+        <label for="tipoDesastre" class="field-required">Tipo de desastre</label>
+        <select id="tipoDesastre" formControlName="tipoDesastre">
+          <option value="" disabled>Elegí un tipo</option>
+          @for (tipo of tiposEmergencia; track tipo.id ?? tipo.tipoDesastre) {
+            <option [value]="tipo.tipoDesastre">{{ tipo.tipoDesastre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="nivelGravedad" class="field-required">Nivel de gravedad</label>
+        <select id="nivelGravedad" formControlName="nivelGravedad">
+          <option value="" disabled>Elegí la gravedad</option>
+          <option value="Bajo">Bajo</option>
+          <option value="Medio">Medio</option>
+          <option value="Alto">Alto</option>
+          <option value="Crítico">Crítico</option>
+        </select>
+      </div>
+
+      <div class="field field-full">
+        <label for="zonaAfectada" class="field-required">Zona afectada</label>
+        <input type="text" id="zonaAfectada" formControlName="zonaAfectada" placeholder="Ej.: Barrio San Carlos">
+      </div>
+
+      <div class="field field-full">
+        <label for="descripcion" class="field-required">Descripción</label>
+        <textarea id="descripcion" formControlName="descripcion" rows="4" placeholder="Describí la situación actual"></textarea>
+        <p class="field-help">Incluí cantidad aproximada de personas afectadas y accesos disponibles.</p>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label for="nivelGravedad">Nivel de Gravedad</label>
-      <select id="nivelGravedad" formControlName="nivelGravedad" class="form-control">
-        <option value="" disabled>Seleccione la gravedad</option>
-        <option value="Bajo">Bajo</option>
-        <option value="Medio">Medio</option>
-        <option value="Alto">Alto</option>
-        <option value="Crítico">Crítico</option>
-      </select>
-    </div>
+    @if (intentoEnviar() && emergenciaForm.invalid) {
+      <p class="field-error" role="alert">Completá todos los campos obligatorios.</p>
+    }
 
-    <div class="form-group">
-      <label for="zonaAfectada">Zona Afectada</label>
-      <input type="text" id="zonaAfectada" formControlName="zonaAfectada" class="form-control" placeholder="Ej: Barrio San Carlos">
+    <div class="form-actions">
+      <a routerLink="/municipio" class="btn btn-ghost">Cancelar</a>
+      <button type="submit" class="btn btn-primary" [disabled]="enviando()">
+        {{ enviando() ? 'Registrando…' : 'Registrar e iniciar protocolo' }}
+      </button>
     </div>
-
-    <div class="form-group">
-      <label for="descripcion">Descripción detallada</label>
-      <textarea id="descripcion" formControlName="descripcion" class="form-control" rows="4" placeholder="Describa la situación actual..."></textarea>
-    </div>
-
-    <button type="submit" [disabled]="emergenciaForm.invalid" class="btn-submit">
-      Registrar e Iniciar Protocolo
-    </button>
   </form>
 </div>

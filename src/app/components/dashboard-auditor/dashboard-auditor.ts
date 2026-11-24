@@ -2,9 +2,10 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { environment } from '../../../environments/environment';
 import { CantidadPorEtiquetaDto, IndicadoresDto } from '../../models/indicadores.model';
 import { AuditorService } from '../../services/auditor.service';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import {
   ExportacionAuditorService,
   OPCIONES_TABLAS_CSV,
@@ -26,6 +27,8 @@ export class DashboardAuditorComponent implements OnInit, OnDestroy {
   private readonly auditorService = inject(AuditorService);
   private readonly exportacionService = inject(ExportacionAuditorService);
   readonly authService = inject(AuthService);
+  readonly estaAutenticado = this.authService.autenticado;
+  readonly esAuditor = computed(() => this.authService.rol() === 'AUDITOR');
 
   readonly indicadores = signal<IndicadoresDto | null>(null);
   readonly cargando = signal(false);
@@ -75,7 +78,7 @@ export class DashboardAuditorComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    if (this.authService.estaAutenticado() && this.authService.esAuditor()) {
+    if (this.estaAutenticado() && this.esAuditor()) {
       this.cargarIndicadores();
     }
   }
@@ -95,13 +98,14 @@ export class DashboardAuditorComponent implements OnInit, OnDestroy {
     this.iniciandoSesion.set(true);
     this.errorLogin.set(null);
 
-    this.authService.login(this.loginForm.getRawValue()).subscribe({
-      next: (sesion) => {
+    const { username, password } = this.loginForm.getRawValue();
+    this.authService.login(username, password).subscribe({
+      next: (usuario) => {
         this.iniciandoSesion.set(false);
         this.loginForm.controls.password.reset('');
-        if (sesion.usuario.rol !== 'AUDITOR') {
+        if (usuario.rol !== 'AUDITOR') {
           this.errorLogin.set(
-            `Ingresaste como ${sesion.usuario.username} (${sesion.usuario.rol}), pero el tablero requiere el perfil AUDITOR.`,
+            `Ingresaste como ${usuario.username} (${usuario.rol}), pero el tablero requiere el perfil AUDITOR.`,
           );
           return;
         }
@@ -115,11 +119,10 @@ export class DashboardAuditorComponent implements OnInit, OnDestroy {
   }
 
   cerrarSesion(): void {
-    this.authService.logout().subscribe(() => {
-      this.indicadores.set(null);
-      this.error.set(null);
-      this.errorLogin.set(null);
-    });
+    this.authService.logout();
+    this.indicadores.set(null);
+    this.error.set(null);
+    this.errorLogin.set(null);
   }
 
   cargarIndicadores(): void {
@@ -142,7 +145,7 @@ export class DashboardAuditorComponent implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         this.cargando.set(false);
         if (err.status === 401) {
-          this.authService.limpiarSesion();
+          this.authService.limpiarSesion(true);
           this.indicadores.set(null);
           this.errorLogin.set(this.extraerMensajeError(err, 'Tu sesión expiró. Iniciá sesión nuevamente.'));
           return;
@@ -330,7 +333,7 @@ export class DashboardAuditorComponent implements OnInit, OnDestroy {
 
   private extraerMensajeError(err: HttpErrorResponse, fallback: string): string {
     if (err.status === 0) {
-      return 'No se pudo conectar con el backend en http://localhost:8082. Verificá que el servicio esté levantado.';
+      return `No se pudo conectar con el backend en ${environment.apiUrl}. Verificá que el servicio esté levantado.`;
     }
     const body = err.error;
     if (typeof body === 'string' && body.trim()) {
