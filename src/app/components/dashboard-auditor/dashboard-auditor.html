@@ -1,0 +1,664 @@
+<div class="dashboard-page">
+  <!-- Cabecera del tablero -->
+  <header class="dash-topbar">
+    <div class="topbar-title">
+      <div class="title-row">
+        <h1>Tablero de Indicadores — Auditoría</h1>
+        @if (indicadores(); as data) {
+          <span class="source-badge" [ngClass]="claseFuente(data.fuente)">{{ data.fuente }}</span>
+        }
+      </div>
+      <p>
+        Monitoreo integral de emergencias, cobertura, consorcios y tiempos de proceso (RescueSync + Bonita BPM)
+      </p>
+    </div>
+
+    @if (authService.usuario(); as usr) {
+      <div class="session-box">
+        <div class="session-info">
+          <strong>{{ usr.nombre }} {{ usr.apellido }}</strong>
+          <span>{{ usr.username }} · {{ usr.rol }}</span>
+        </div>
+        <button type="button" class="btn-outline" (click)="cerrarSesion()">Cerrar sesión</button>
+      </div>
+    }
+  </header>
+
+  <!-- Gate de autenticación para rol AUDITOR -->
+  @if (!authService.estaAutenticado() || !authService.esAuditor()) {
+    <section class="auth-card">
+      <div class="auth-header">
+        <h2>Acceso de Auditor</h2>
+        <p>
+          El endpoint <code>GET /api/auditor/indicadores</code> requiere sesión activa con perfil
+          <strong>AUDITOR</strong> (credenciales de Bonita).
+        </p>
+      </div>
+
+      @if (authService.estaAutenticado() && !authService.esAuditor()) {
+        <div class="alert-error">
+          Tu sesión actual pertenece al rol <strong>{{ authService.usuario()?.rol }}</strong>. Cerrá sesión o ingresá
+          con un usuario con perfil <strong>AUDITOR</strong>.
+        </div>
+      }
+
+      @if (errorLogin()) {
+        <div class="alert-error">{{ errorLogin() }}</div>
+      }
+
+      <form [formGroup]="loginForm" (ngSubmit)="iniciarSesion()" class="auth-form">
+        <div class="field-group">
+          <label for="auditor-username">Usuario de Bonita</label>
+          <input
+            id="auditor-username"
+            type="text"
+            formControlName="username"
+            placeholder="Ej: auditor"
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="auditor-password">Contraseña</label>
+          <input
+            id="auditor-password"
+            type="password"
+            formControlName="password"
+            placeholder="Ingresá tu contraseña"
+            autocomplete="current-password"
+          />
+        </div>
+
+        <button type="submit" class="btn-primary" [disabled]="iniciandoSesion() || loginForm.invalid">
+          {{ iniciandoSesion() ? 'Verificando credenciales...' : 'Ingresar al Dashboard' }}
+        </button>
+      </form>
+    </section>
+  } @else {
+    <!-- Barra de filtros y navegación -->
+    <section class="filter-bar">
+      <div class="filter-inputs">
+        <div class="filter-field">
+          <label for="filtro-desde">Desde</label>
+          <input
+            id="filtro-desde"
+            type="date"
+            [ngModel]="desde()"
+            (ngModelChange)="desde.set($event)"
+          />
+        </div>
+        <div class="filter-field">
+          <label for="filtro-hasta">Hasta</label>
+          <input
+            id="filtro-hasta"
+            type="date"
+            [ngModel]="hasta()"
+            (ngModelChange)="hasta.set($event)"
+          />
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn-primary" (click)="cargarIndicadores()" [disabled]="cargando()">
+            {{ cargando() ? 'Cargando...' : 'Aplicar filtro' }}
+          </button>
+          <button type="button" class="btn-outline" (click)="limpiarFiltros()" [disabled]="cargando()">
+            Limpiar
+          </button>
+        </div>
+      </div>
+
+      <div class="view-tabs" role="tablist" aria-label="Secciones del tablero">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="vistaActiva() === 'todos'"
+          (click)="cambiarVista('todos')"
+        >
+          Vista completa
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="vistaActiva() === 'operacion'"
+          (click)="cambiarVista('operacion')"
+        >
+          Operación (DSSD)
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="vistaActiva() === 'bonita'"
+          (click)="cambiarVista('bonita')"
+        >
+          Procesos (Bonita)
+        </button>
+      </div>
+    </section>
+
+    @if (error()) {
+      <div class="alert-error">{{ error() }}</div>
+    }
+
+    @if (cargando() && !indicadores()) {
+      <div class="loading-box">
+        <div class="spinner"></div>
+        <p>Consultando indicadores de RescueSync y métricas en tiempo real de Bonita...</p>
+      </div>
+    }
+
+    @if (indicadores(); as data) {
+      <!-- Banda de metadatos -->
+      <div class="meta-strip">
+        <span>
+          <strong>Período:</strong>
+          @if (data.desde || data.hasta) {
+            {{ data.desde || 'Inicio' }} → {{ data.hasta || 'Hoy' }}
+          } @else {
+            Todo el historial
+          }
+        </span>
+        <span><strong>Generado:</strong> {{ data.generadoEn | date: 'dd/MM/yyyy HH:mm:ss' }}</span>
+        <span><strong>Bloques Bonita activos:</strong> {{ bonitasDisponibles() }} / 6</span>
+      </div>
+
+      <!-- Barra de exportación de datos estructurados -->
+      <section class="export-bar" aria-label="Opciones de exportación de datos estructurados">
+        <div class="export-group">
+          <span class="export-title">Exportar datos estructurados:</span>
+          <button type="button" class="btn-export" (click)="exportarJson()" title="Descargar snapshot completo en JSON">
+            JSON completo
+          </button>
+          <button type="button" class="btn-export" (click)="exportarCsvCompleto()" title="Descargar todas las métricas en CSV para Excel/BI">
+            CSV completo
+          </button>
+          <button type="button" class="btn-export" (click)="exportarXml()" title="Descargar snapshot completo en XML">
+            XML
+          </button>
+          <button type="button" class="btn-outline" (click)="imprimirReporte()" title="Imprimir o guardar como PDF">
+            Imprimir / PDF
+          </button>
+        </div>
+
+        <div class="export-table-group">
+          <label for="tabla-csv-select" class="sr-only">Tabla específica a exportar en CSV</label>
+          <select
+            id="tabla-csv-select"
+            class="export-select"
+            [ngModel]="tablaCsvSeleccionada()"
+            (ngModelChange)="tablaCsvSeleccionada.set($event)"
+          >
+            @for (op of opcionesTablasCsv; track op.id) {
+              <option [value]="op.id">{{ op.etiqueta }}</option>
+            }
+          </select>
+          <button type="button" class="btn-export-secondary" (click)="exportarCsvTablaSeleccionada()">
+            Descargar CSV tabla
+          </button>
+        </div>
+
+        @if (mensajeExportacion(); as aviso) {
+          <span class="export-feedback" role="status">{{ aviso }}</span>
+        }
+      </section>
+
+      @if (mostrarOperacion()) {
+        <section class="operacion-section">
+          <div class="section-heading">
+            <div>
+              <h2>Indicadores Operativos — RescueSync</h2>
+              <p>Resumen de actividad, proyectos, cobertura de necesidades, consorcios y participación de ONGs</p>
+            </div>
+            <span class="source-badge" [ngClass]="claseFuente(fuenteSeccion('totales'))">
+              {{ fuenteSeccion('totales') }}
+            </span>
+          </div>
+
+          <!-- 1. Totales del período -->
+          <div class="kpi-grid">
+            <div class="kpi-card kpi-blue">
+              <span class="kpi-label">Emergencias</span>
+              <strong class="kpi-value">{{ data.totales.emergencias | number }}</strong>
+            </div>
+            <div class="kpi-card kpi-indigo">
+              <span class="kpi-label">Convocatorias publicadas</span>
+              <strong class="kpi-value">{{ data.totales.convocatoriasPublicadas | number }}</strong>
+            </div>
+            <div class="kpi-card kpi-sky">
+              <span class="kpi-label">Ofertas recibidas</span>
+              <strong class="kpi-value">{{ data.totales.ofertasRecibidas | number }}</strong>
+            </div>
+            <div class="kpi-card kpi-green">
+              <span class="kpi-label">Ofertas adjudicadas</span>
+              <strong class="kpi-value">{{ data.totales.ofertasAdjudicadas | number }}</strong>
+            </div>
+            <div class="kpi-card kpi-amber">
+              <span class="kpi-label">Proyectos en curso</span>
+              <strong class="kpi-value">{{ data.totales.proyectosEnCurso | number }}</strong>
+            </div>
+            <div class="kpi-card kpi-teal">
+              <span class="kpi-label">Proyectos finalizados</span>
+              <strong class="kpi-value">{{ data.totales.proyectosFinalizados | number }}</strong>
+            </div>
+            <div class="kpi-card kpi-purple">
+              <span class="kpi-label">Suministros movilizados</span>
+              <strong class="kpi-value">{{ data.totales.suministrosMovilizados | number }}</strong>
+            </div>
+          </div>
+
+          <!-- 2. Estado de Proyectos + 3. Ofertas Conjuntas -->
+          <div class="grid-2">
+            <article class="dash-card">
+              <div class="card-header">
+                <div>
+                  <h3>Estado de Proyectos</h3>
+                  <p class="card-subtitle">Avance, finalización y duración promedio de proyectos terminados</p>
+                </div>
+                <span class="source-badge" [ngClass]="claseFuente(data.proyectos.fuente)">
+                  {{ data.proyectos.fuente }}
+                </span>
+              </div>
+
+              <div class="project-body">
+                <div class="ring-box">
+                  <svg viewBox="0 0 96 96" class="donut-svg" aria-label="Porcentaje de proyectos finalizados">
+                    <circle class="donut-track" cx="48" cy="48" r="38"></circle>
+                    <circle
+                      class="donut-value donut-green"
+                      cx="48"
+                      cy="48"
+                      r="38"
+                      [attr.stroke-dasharray]="ringCircumference"
+                      [attr.stroke-dashoffset]="ringOffset(data.proyectos.porcentajeFinalizados)"
+                    ></circle>
+                  </svg>
+                  <div class="ring-center">
+                    <span class="ring-pct">{{ data.proyectos.porcentajeFinalizados | number: '1.0-1' }}%</span>
+                    <span class="ring-lbl">Finalizados</span>
+                  </div>
+                </div>
+
+                <div class="project-metrics">
+                  <div class="metric-line">
+                    <span>En curso</span>
+                    <strong class="text-blue">{{ data.proyectos.enCurso }}</strong>
+                  </div>
+                  <div class="metric-line">
+                    <span>Finalizados</span>
+                    <strong class="text-green">{{ data.proyectos.finalizados }}</strong>
+                  </div>
+                  <div class="metric-line">
+                    <span>Sin proyecto asignado</span>
+                    <strong class="muted">{{ data.proyectos.sinProyecto }}</strong>
+                  </div>
+                  <div class="metric-line metric-highlight">
+                    <span>Duración promedio finalizados</span>
+                    <strong>{{ formatearHoras(data.proyectos.duracionPromedioFinalizadosHoras) }}</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="dash-card">
+              <div class="card-header">
+                <div>
+                  <h3>Ofertas Conjuntas (Consorcios)</h3>
+                  <p class="card-subtitle">Peso de los consorcios sobre lo adjudicado y emergencias cubiertas</p>
+                </div>
+                <span class="source-badge" [ngClass]="claseFuente(data.ofertasConjuntas.fuente)">
+                  {{ data.ofertasConjuntas.fuente }}
+                </span>
+              </div>
+
+              <div class="bar-list">
+                <div class="bar-item">
+                  <div class="bar-item-head">
+                    <span class="fw-600">Ofertas adjudicadas en consorcio</span>
+                    <span class="bar-meta">
+                      {{ data.ofertasConjuntas.adjudicadasEnConjunta }} / {{ data.ofertasConjuntas.ofertasAdjudicadas }}
+                      <strong>({{ data.ofertasConjuntas.porcentajeOfertas | number: '1.0-1' }}%)</strong>
+                    </span>
+                  </div>
+                  <div class="mini-bar-track">
+                    <div class="mini-bar-fill bar-indigo" [style.width.%]="data.ofertasConjuntas.porcentajeOfertas"></div>
+                  </div>
+                </div>
+
+                <div class="bar-item">
+                  <div class="bar-item-head">
+                    <span class="fw-600">Unidades movilizadas en consorcio</span>
+                    <span class="bar-meta">
+                      {{ data.ofertasConjuntas.unidadesEnConjunta | number }} /
+                      {{ data.ofertasConjuntas.unidadesAdjudicadas | number }}
+                      <strong>({{ data.ofertasConjuntas.porcentajeUnidades | number: '1.0-1' }}%)</strong>
+                    </span>
+                  </div>
+                  <div class="mini-bar-track">
+                    <div class="mini-bar-fill bar-teal" [style.width.%]="data.ofertasConjuntas.porcentajeUnidades"></div>
+                  </div>
+                </div>
+
+                <div class="bar-item">
+                  <div class="bar-item-head">
+                    <span class="fw-600">Emergencias resueltas con consorcio</span>
+                    <span class="bar-meta">
+                      {{ data.ofertasConjuntas.emergenciasConConsorcio }} /
+                      {{ data.ofertasConjuntas.emergenciasConAdjudicacion }}
+                      <strong>({{ data.ofertasConjuntas.porcentajeEmergenciasConConsorcio | number: '1.0-1' }}%)</strong>
+                    </span>
+                  </div>
+                  <div class="mini-bar-track">
+                    <div
+                      class="mini-bar-fill bar-purple"
+                      [style.width.%]="data.ofertasConjuntas.porcentajeEmergenciasConConsorcio"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- 4. Distribuciones (4 cards) -->
+          <div class="grid-2">
+            <article class="dash-card">
+              <div class="card-header">
+                <div>
+                  <h3>Suministros Movilizados por Tipo</h3>
+                  <p class="card-subtitle">Unidades adjudicadas y finalizadas por tipo de recurso</p>
+                </div>
+                <span class="source-badge" [ngClass]="claseFuente(fuenteSeccion('suministrosPorTipo'))">
+                  {{ fuenteSeccion('suministrosPorTipo') }}
+                </span>
+              </div>
+
+              @if (data.suministrosPorTipo.length === 0) {
+                <p class="empty-msg">Sin suministros movilizados en el período.</p>
+              } @else {
+                <div class="bar-list">
+                  @for (item of data.suministrosPorTipo; track item.etiqueta) {
+                    <div class="bar-item">
+                      <div class="bar-item-head">
+                        <span class="fw-600">{{ item.etiqueta }}</span>
+                        <span class="bar-meta">
+                          <strong>{{ item.cantidad | number }}</strong>
+                          <small>({{ porcentajeSobreTotal(item.cantidad, totalCantidad(data.suministrosPorTipo)) }}%)</small>
+                        </span>
+                      </div>
+                      <div class="mini-bar-track">
+                        <div
+                          class="mini-bar-fill bar-blue"
+                          [style.width.%]="porcentajeBarra(item.cantidad, maxCantidad(data.suministrosPorTipo))"
+                        ></div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </article>
+
+            <article class="dash-card">
+              <div class="card-header">
+                <div>
+                  <h3>Emergencias por Etapa</h3>
+                  <p class="card-subtitle">Distribución actual del flujo de emergencias</p>
+                </div>
+                <span class="source-badge" [ngClass]="claseFuente(fuenteSeccion('emergenciasPorEtapa'))">
+                  {{ fuenteSeccion('emergenciasPorEtapa') }}
+                </span>
+              </div>
+
+              @if (data.emergenciasPorEtapa.length === 0) {
+                <p class="empty-msg">Sin emergencias registradas en el período.</p>
+              } @else {
+                <div class="bar-list">
+                  @for (item of data.emergenciasPorEtapa; track item.etiqueta) {
+                    <div class="bar-item">
+                      <div class="bar-item-head">
+                        <span class="fw-600">{{ formatearEtiqueta(item.etiqueta) }}</span>
+                        <span class="bar-meta">
+                          <strong>{{ item.cantidad }}</strong>
+                          <small>({{ porcentajeSobreTotal(item.cantidad, totalCantidad(data.emergenciasPorEtapa)) }}%)</small>
+                        </span>
+                      </div>
+                      <div class="mini-bar-track">
+                        <div
+                          class="mini-bar-fill bar-indigo"
+                          [style.width.%]="porcentajeBarra(item.cantidad, maxCantidad(data.emergenciasPorEtapa))"
+                        ></div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </article>
+
+            <article class="dash-card">
+              <div class="card-header">
+                <div>
+                  <h3>Emergencias por Gravedad</h3>
+                  <p class="card-subtitle">Clasificación por nivel de severidad</p>
+                </div>
+                <span class="source-badge" [ngClass]="claseFuente(fuenteSeccion('emergenciasPorGravedad'))">
+                  {{ fuenteSeccion('emergenciasPorGravedad') }}
+                </span>
+              </div>
+
+              @if (data.emergenciasPorGravedad.length === 0) {
+                <p class="empty-msg">Sin datos de gravedad en el período.</p>
+              } @else {
+                <div class="bar-list">
+                  @for (item of data.emergenciasPorGravedad; track item.etiqueta) {
+                    <div class="bar-item">
+                      <div class="bar-item-head">
+                        <span class="fw-600">{{ item.etiqueta }}</span>
+                        <span class="bar-meta">
+                          <strong>{{ item.cantidad }}</strong>
+                          <small>({{ porcentajeSobreTotal(item.cantidad, totalCantidad(data.emergenciasPorGravedad)) }}%)</small>
+                        </span>
+                      </div>
+                      <div class="mini-bar-track">
+                        <div
+                          class="mini-bar-fill"
+                          [ngClass]="claseGravedad(item.etiqueta)"
+                          [style.width.%]="porcentajeBarra(item.cantidad, maxCantidad(data.emergenciasPorGravedad))"
+                        ></div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </article>
+
+            <article class="dash-card">
+              <div class="card-header">
+                <div>
+                  <h3>Ofertas por Estado</h3>
+                  <p class="card-subtitle">Distribución de lotes recibidos según su estado actual</p>
+                </div>
+                <span class="source-badge" [ngClass]="claseFuente(fuenteSeccion('ofertasPorEstado'))">
+                  {{ fuenteSeccion('ofertasPorEstado') }}
+                </span>
+              </div>
+
+              @if (data.ofertasPorEstado.length === 0) {
+                <p class="empty-msg">Sin ofertas registradas en el período.</p>
+              } @else {
+                <div class="bar-list">
+                  @for (item of data.ofertasPorEstado; track item.etiqueta) {
+                    <div class="bar-item">
+                      <div class="bar-item-head">
+                        <span class="fw-600">{{ formatearEtiqueta(item.etiqueta) }}</span>
+                        <span class="bar-meta">
+                          <strong>{{ item.cantidad }}</strong>
+                          <small>({{ porcentajeSobreTotal(item.cantidad, totalCantidad(data.ofertasPorEstado)) }}%)</small>
+                        </span>
+                      </div>
+                      <div class="mini-bar-track">
+                        <div
+                          class="mini-bar-fill"
+                          [ngClass]="claseEstadoOferta(item.etiqueta)"
+                          [style.width.%]="porcentajeBarra(item.cantidad, maxCantidad(data.ofertasPorEstado))"
+                        ></div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </article>
+          </div>
+
+          <!-- 5. Cobertura de Necesidades -->
+          <article class="dash-card">
+            <div class="card-header">
+              <div>
+                <h3>Cobertura de Necesidades</h3>
+                <p class="card-subtitle">Comparación entre unidades requeridas, ofertadas, validadas y adjudicadas</p>
+              </div>
+              <span class="source-badge" [ngClass]="claseFuente(data.coberturaNecesidades.fuente)">
+                {{ data.coberturaNecesidades.fuente }}
+              </span>
+            </div>
+
+            <div class="inline-stats">
+              <div class="inline-stat">
+                <span>Requeridas</span>
+                <strong>{{ data.coberturaNecesidades.unidadesRequeridas | number }}</strong>
+              </div>
+              <div class="inline-stat">
+                <span>Ofertadas</span>
+                <strong class="text-blue">
+                  {{ data.coberturaNecesidades.unidadesOfertadas | number }}
+                  <small>({{ data.coberturaNecesidades.porcentajeCoberturaOfertada | number: '1.0-1' }}%)</small>
+                </strong>
+              </div>
+              <div class="inline-stat">
+                <span>Validadas</span>
+                <strong>{{ data.coberturaNecesidades.unidadesValidadas | number }}</strong>
+              </div>
+              <div class="inline-stat">
+                <span>Adjudicadas</span>
+                <strong class="text-green">
+                  {{ data.coberturaNecesidades.unidadesAdjudicadas | number }}
+                  <small>({{ data.coberturaNecesidades.porcentajeCoberturaAdjudicada | number: '1.0-1' }}%)</small>
+                </strong>
+              </div>
+              <div class="inline-stat">
+                <span>Con reapertura</span>
+                <strong>{{ data.coberturaNecesidades.convocatoriasConReapertura }}</strong>
+              </div>
+              <div class="inline-stat">
+                <span>Cobertura parcial</span>
+                <strong>{{ data.coberturaNecesidades.convocatoriasConCoberturaParcial }}</strong>
+              </div>
+            </div>
+
+            @if (data.coberturaNecesidades.porTipoRecurso.length === 0) {
+              <p class="empty-msg">Sin necesidades registradas por tipo de recurso.</p>
+            } @else {
+              <div class="table-wrap mt-md">
+                <table class="dash-table">
+                  <thead>
+                    <tr>
+                      <th>Recurso</th>
+                      <th class="num">Requeridas</th>
+                      <th class="num">Ofertadas</th>
+                      <th class="num">Adjudicadas</th>
+                      <th>Cobertura adjudicada</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (rec of data.coberturaNecesidades.porTipoRecurso; track rec.recurso) {
+                      <tr>
+                        <td class="fw-600">{{ rec.recurso }}</td>
+                        <td class="num">{{ rec.unidadesRequeridas | number }}</td>
+                        <td class="num">{{ rec.unidadesOfertadas | number }}</td>
+                        <td class="num fw-600">{{ rec.unidadesAdjudicadas | number }}</td>
+                        <td>
+                          <div class="coverage-cell">
+                            <div class="mini-bar-track">
+                              <div
+                                class="mini-bar-fill"
+                                [ngClass]="claseCobertura(rec.porcentajeCoberturaAdjudicada)"
+                                [style.width.%]="rec.porcentajeCoberturaAdjudicada > 100 ? 100 : rec.porcentajeCoberturaAdjudicada"
+                              ></div>
+                            </div>
+                            <span class="coverage-pct">{{ rec.porcentajeCoberturaAdjudicada | number: '1.0-1' }}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </article>
+
+          <!-- 6. Ranking de ONGs -->
+          <article class="dash-card">
+            <div class="card-header">
+              <div>
+                <h3>Ranking de Organizaciones (ONGs)</h3>
+                <p class="card-subtitle">
+                  {{ data.rankingOngs.totalOrganizacionesParticipantes }} organizaciones participantes en el período
+                </p>
+              </div>
+              <span class="source-badge" [ngClass]="claseFuente(data.rankingOngs.fuente)">
+                {{ data.rankingOngs.fuente }}
+              </span>
+            </div>
+
+            @if (data.rankingOngs.organizaciones.length === 0) {
+              <p class="empty-msg">No se registró participación de organizaciones en el período.</p>
+            } @else {
+              <div class="table-wrap">
+                <table class="dash-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Organización</th>
+                      <th class="num">Presentadas</th>
+                      <th class="num">Adjudicadas</th>
+                      <th class="num">En consorcio</th>
+                      <th>Unidades movilizadas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (ong of data.rankingOngs.organizaciones; track ong.organizacionId ?? ong.organizacionNombre; let i = $index) {
+                      <tr>
+                        <td class="rank-col">{{ i + 1 }}</td>
+                        <td class="fw-600">{{ ong.organizacionNombre }}</td>
+                        <td class="num">{{ ong.ofertasPresentadas }}</td>
+                        <td class="num">{{ ong.ofertasAdjudicadas }}</td>
+                        <td class="num">{{ ong.participacionesEnConsorcio }}</td>
+                        <td>
+                          <div class="coverage-cell">
+                            <div class="mini-bar-track">
+                              <div
+                                class="mini-bar-fill bar-green"
+                                [style.width.%]="porcentajeBarra(ong.unidadesMovilizadas, maxUnidadesOng())"
+                              ></div>
+                            </div>
+                            <span class="coverage-pct">{{ ong.unidadesMovilizadas | number }}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </article>
+        </section>
+      }
+
+      @if (mostrarBonita()) {
+        <app-bonita-metricas
+          [estadosCasos]="data.estadosCasosBonita"
+          [tiemposPorEtapa]="data.tiemposPorEtapa"
+          [cuellosDeBotella]="data.cuellosDeBotellaBonita"
+          [esperaVsEjecucion]="data.tiemposEsperaVsEjecucionBonita"
+          [tiemposCruzados]="data.tiemposResolucionCruzados"
+          [actividadUsuarios]="data.actividadUsuariosBonita"
+        ></app-bonita-metricas>
+      }
+    }
+  }
+</div>

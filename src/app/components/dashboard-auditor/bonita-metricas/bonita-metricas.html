@@ -1,0 +1,439 @@
+<section class="bonita-section">
+  <div class="section-heading">
+    <div>
+      <h2>Métricas de Proceso — Bonita BPM</h2>
+      <p>Indicadores operativos obtenidos desde la API REST de Bonita y cruzados con RescueSync</p>
+    </div>
+    <span class="source-badge source-bonita">BONITA_API</span>
+  </div>
+
+  <!-- Bloque 5: Salud del proceso y estados de casos -->
+  <article class="dash-card">
+    <div class="card-header">
+      <div>
+        <h3>Salud del Proceso y Casos</h3>
+        <p class="card-subtitle">Instancias activas, finalizadas, tareas fallidas y versiones desplegadas</p>
+      </div>
+      <span class="source-badge" [ngClass]="claseFuente(estadosCasos().fuente)">{{ estadosCasos().fuente }}</span>
+    </div>
+
+    @if (!estadosCasos().disponible) {
+      <div class="unavailable-banner">
+        <strong>Sin conexión con Bonita:</strong> {{ estadosCasos().mensaje || 'Métrica no disponible en este momento.' }}
+      </div>
+    } @else {
+      <div class="health-layout">
+        <div class="ring-box">
+          <svg viewBox="0 0 96 96" class="donut-svg" aria-label="Tasa de finalización de casos">
+            <circle class="donut-track" cx="48" cy="48" r="38"></circle>
+            <circle
+              class="donut-value donut-purple"
+              cx="48"
+              cy="48"
+              r="38"
+              [attr.stroke-dasharray]="ringCircumference"
+              [attr.stroke-dashoffset]="ringOffset(estadosCasos().tasaFinalizacionPorcentaje)"
+            ></circle>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-pct">{{ estadosCasos().tasaFinalizacionPorcentaje | number: '1.0-1' }}%</span>
+            <span class="ring-lbl">Finalización</span>
+          </div>
+        </div>
+
+        <div class="mini-kpi-grid">
+          <div class="mini-kpi">
+            <span class="mini-kpi-label">Versiones desplegadas</span>
+            <strong class="mini-kpi-value">{{ estadosCasos().versionesProcesoDesplegadas }}</strong>
+          </div>
+          <div class="mini-kpi">
+            <span class="mini-kpi-label">Casos activos</span>
+            <strong class="mini-kpi-value text-blue">{{ estadosCasos().casosActivos }}</strong>
+          </div>
+          <div class="mini-kpi">
+            <span class="mini-kpi-label">Casos finalizados</span>
+            <strong class="mini-kpi-value text-green">{{ estadosCasos().casosFinalizados }}</strong>
+          </div>
+          <div class="mini-kpi" [class.mini-kpi-alert]="estadosCasos().tareasFallidas > 0">
+            <span class="mini-kpi-label">Tareas fallidas</span>
+            <strong class="mini-kpi-value" [class.text-red]="estadosCasos().tareasFallidas > 0">
+              {{ estadosCasos().tareasFallidas }}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      @if (estadosCasos().procesos.length > 0) {
+        <div class="table-wrap mt-md">
+          <table class="dash-table">
+            <thead>
+              <tr>
+                <th>Proceso</th>
+                <th>Versión</th>
+                <th>ID</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (proc of estadosCasos().procesos; track proc.id) {
+                <tr>
+                  <td class="fw-600">{{ proc.nombre }}</td>
+                  <td>{{ proc.version }}</td>
+                  <td class="mono">{{ proc.id }}</td>
+                  <td>
+                    <span class="status-pill" [ngClass]="claseEstadoActivacion(proc.estadoActivacion)">
+                      {{ proc.estadoActivacion }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </article>
+
+  <!-- Bloque 1 y 2: Tiempos por etapa + Cuellos de botella -->
+  <div class="grid-2">
+    <article class="dash-card">
+      <div class="card-header">
+        <div>
+          <h3>Tiempos Promedio por Etapa</h3>
+          <p class="card-subtitle">Duración promedio, mínima y máxima de cada etapa completada</p>
+        </div>
+        <span class="source-badge" [ngClass]="claseFuente(tiemposPorEtapa().fuente)">{{ tiemposPorEtapa().fuente }}</span>
+      </div>
+
+      @if (!tiemposPorEtapa().disponible) {
+        <div class="unavailable-banner">
+          <strong>Sin conexión con Bonita:</strong> {{ tiemposPorEtapa().mensaje || 'Métrica no disponible.' }}
+        </div>
+      } @else {
+        <div class="inline-stats">
+          <div class="inline-stat">
+            <span>Casos analizados</span>
+            <strong>{{ tiemposPorEtapa().casosAnalizados }}</strong>
+          </div>
+          <div class="inline-stat">
+            <span>Finalizados en Bonita</span>
+            <strong>{{ tiemposPorEtapa().casosFinalizadosEnBonita }}</strong>
+          </div>
+          <div class="inline-stat">
+            <span>Resolución total prom.</span>
+            <strong>{{ formatearHoras(tiemposPorEtapa().promedioResolucionTotalHoras) }}</strong>
+          </div>
+        </div>
+
+        @if (tiemposPorEtapa().etapas.length === 0) {
+          <p class="empty-msg">No hay etapas completadas registradas en el período.</p>
+        } @else {
+          <div class="table-wrap mt-sm">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Etapa</th>
+                  <th class="num">Casos</th>
+                  <th class="num">Mín.</th>
+                  <th class="num">Prom.</th>
+                  <th class="num">Máx.</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (etapa of tiemposPorEtapa().etapas; track etapa.etapa) {
+                  <tr>
+                    <td>
+                      <div class="stage-cell">
+                        <span class="fw-600">{{ etapa.etapa }}</span>
+                        <div class="mini-bar-track">
+                          <div
+                            class="mini-bar-fill bar-purple"
+                            [style.width.%]="porcentajeBarra(etapa.promedioHoras, maxTiempoEtapa())"
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="num">{{ etapa.casos }}</td>
+                    <td class="num muted">{{ formatearHoras(etapa.minHoras) }}</td>
+                    <td class="num fw-600">{{ formatearHoras(etapa.promedioHoras) }}</td>
+                    <td class="num muted">{{ formatearHoras(etapa.maxHoras) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </article>
+
+    <article class="dash-card">
+      <div class="card-header">
+        <div>
+          <h3>Cuellos de Botella (Pendientes)</h3>
+          <p class="card-subtitle">Tareas humanas actualmente abiertas y tiempo de espera acumulado</p>
+        </div>
+        <span class="source-badge" [ngClass]="claseFuente(cuellosDeBotella().fuente)">{{ cuellosDeBotella().fuente }}</span>
+      </div>
+
+      @if (!cuellosDeBotella().disponible) {
+        <div class="unavailable-banner">
+          <strong>Sin conexión con Bonita:</strong> {{ cuellosDeBotella().mensaje || 'Métrica no disponible.' }}
+        </div>
+      } @else {
+        <div class="inline-stats">
+          <div class="inline-stat">
+            <span>Casos activos</span>
+            <strong>{{ cuellosDeBotella().casosActivosEnBonita }}</strong>
+          </div>
+          <div class="inline-stat">
+            <span>Tareas pendientes</span>
+            <strong [class.text-amber]="cuellosDeBotella().totalTareasPendientes > 0">
+              {{ cuellosDeBotella().totalTareasPendientes }}
+            </strong>
+          </div>
+        </div>
+
+        @if (cuellosDeBotella().pendientesPorEtapa.length === 0) {
+          <p class="empty-msg">No se registran tareas pendientes (sin cuellos de botella activos).</p>
+        } @else {
+          <div class="table-wrap mt-sm">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Etapa</th>
+                  <th class="num">Pendientes</th>
+                  <th class="num">Espera prom.</th>
+                  <th class="num">Espera máx.</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of cuellosDeBotella().pendientesPorEtapa; track item.etapa) {
+                  <tr>
+                    <td>
+                      <div class="stage-cell">
+                        <span class="fw-600">{{ item.etapa }}</span>
+                        <div class="mini-bar-track">
+                          <div
+                            class="mini-bar-fill bar-amber"
+                            [style.width.%]="porcentajeBarra(item.cantidadPendientes, maxPendientes())"
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="num fw-600">{{ item.cantidadPendientes }}</td>
+                    <td class="num">{{ formatearHoras(item.esperaPromedioHoras) }}</td>
+                    <td class="num text-red fw-600">{{ formatearHoras(item.esperaMaximaHoras) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </article>
+  </div>
+
+  <!-- Bloque 6: Espera vs Ejecución -->
+  <article class="dash-card">
+    <div class="card-header">
+      <div>
+        <h3>Tiempo en Espera (Cola) vs. Ejecución Efectiva</h3>
+        <p class="card-subtitle">Cuánto tiempo permanecen las tareas sin asignar frente al tiempo de resolución activa</p>
+      </div>
+      <span class="source-badge" [ngClass]="claseFuente(esperaVsEjecucion().fuente)">{{ esperaVsEjecucion().fuente }}</span>
+    </div>
+
+    @if (!esperaVsEjecucion().disponible) {
+      <div class="unavailable-banner">
+        <strong>Sin conexión con Bonita:</strong> {{ esperaVsEjecucion().mensaje || 'Métrica no disponible.' }}
+      </div>
+    } @else {
+      <div class="inline-stats">
+        <div class="inline-stat">
+          <span>Espera promedio global</span>
+          <strong class="text-amber">{{ formatearHoras(esperaVsEjecucion().esperaPromedioGlobalHoras) }}</strong>
+        </div>
+        <div class="inline-stat">
+          <span>Ejecución promedio global</span>
+          <strong class="text-blue">{{ formatearHoras(esperaVsEjecucion().ejecucionPromedioGlobalHoras) }}</strong>
+        </div>
+        <div class="inline-stat">
+          <span>% Tiempo en cola</span>
+          <strong>
+            {{
+              esperaVsEjecucion().porcentajeEsperaGlobal !== null
+                ? (esperaVsEjecucion().porcentajeEsperaGlobal | number: '1.0-1') + '%'
+                : '—'
+            }}
+          </strong>
+        </div>
+      </div>
+
+      @if (esperaVsEjecucion().porcentajeEsperaGlobal !== null) {
+        <div class="stacked-legend mt-sm">
+          <span><i class="dot dot-wait"></i> Espera sin asignar ({{ esperaVsEjecucion().porcentajeEsperaGlobal | number: '1.0-1' }}%)</span>
+          <span><i class="dot dot-exec"></i> Ejecución efectiva ({{ porcentajeEjecucion(esperaVsEjecucion().porcentajeEsperaGlobal) | number: '1.0-1' }}%)</span>
+        </div>
+        <div class="stacked-bar stacked-bar-lg">
+          <div class="seg-wait" [style.width.%]="esperaVsEjecucion().porcentajeEsperaGlobal"></div>
+          <div class="seg-exec" [style.width.%]="porcentajeEjecucion(esperaVsEjecucion().porcentajeEsperaGlobal)"></div>
+        </div>
+      }
+
+      @if (esperaVsEjecucion().etapas.length === 0) {
+        <p class="empty-msg">Sin desglose de espera vs. ejecución por etapa en este período.</p>
+      } @else {
+        <div class="wait-list mt-md">
+          @for (etapa of esperaVsEjecucion().etapas; track etapa.etapa) {
+            <div class="wait-row">
+              <div class="wait-row-head">
+                <span class="fw-600">{{ etapa.etapa }}</span>
+                <span class="muted">
+                  {{ etapa.casos }} casos · Espera {{ formatearHoras(etapa.esperaPromedioHoras) }} · Ejec.
+                  {{ formatearHoras(etapa.ejecucionPromedioHoras) }} ({{ etapa.porcentajeEspera | number: '1.0-1' }}% cola)
+                </span>
+              </div>
+              <div class="stacked-bar">
+                <div class="seg-wait" [style.width.%]="etapa.porcentajeEspera"></div>
+                <div class="seg-exec" [style.width.%]="porcentajeEjecucion(etapa.porcentajeEspera)"></div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  </article>
+
+  <!-- Bloque 3 y 4: Tiempos cruzados + Actividad de usuarios -->
+  <div class="grid-2">
+    <article class="dash-card">
+      <div class="card-header">
+        <div>
+          <h3>Tiempos de Resolución Cruzados</h3>
+          <p class="card-subtitle">Cruce de duración en Bonita por gravedad y tipo de desastre de RescueSync</p>
+        </div>
+        <span class="source-badge" [ngClass]="claseFuente(tiemposCruzados().fuente)">{{ tiemposCruzados().fuente }}</span>
+      </div>
+
+      @if (!tiemposCruzados().disponible) {
+        <div class="unavailable-banner">
+          <strong>Sin conexión con Bonita:</strong> {{ tiemposCruzados().mensaje || 'Métrica no disponible.' }}
+        </div>
+      } @else {
+        <div class="cross-block">
+          <h4 class="sub-title">Por nivel de gravedad</h4>
+          @if (tiemposCruzados().porGravedad.length === 0) {
+            <p class="empty-msg">Sin casos resueltos para agrupar por gravedad.</p>
+          } @else {
+            <div class="bar-list">
+              @for (item of tiemposCruzados().porGravedad; track item.etiqueta) {
+                <div class="bar-item">
+                  <div class="bar-item-head">
+                    <span class="fw-600">{{ item.etiqueta }}</span>
+                    <span class="bar-meta">
+                      {{ formatearHoras(item.promedioHoras) }}
+                      <small>({{ item.casos }} casos · {{ formatearHoras(item.minHoras) }}–{{ formatearHoras(item.maxHoras) }})</small>
+                    </span>
+                  </div>
+                  <div class="mini-bar-track">
+                    <div
+                      class="mini-bar-fill bar-teal"
+                      [style.width.%]="porcentajeBarra(item.promedioHoras, maxTiempoGrupo(tiemposCruzados().porGravedad))"
+                    ></div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <h4 class="sub-title mt-md">Por tipo de desastre</h4>
+          @if (tiemposCruzados().porTipoDesastre.length === 0) {
+            <p class="empty-msg">Sin casos resueltos para agrupar por tipo de desastre.</p>
+          } @else {
+            <div class="bar-list">
+              @for (item of tiemposCruzados().porTipoDesastre; track item.etiqueta) {
+                <div class="bar-item">
+                  <div class="bar-item-head">
+                    <span class="fw-600">{{ item.etiqueta }}</span>
+                    <span class="bar-meta">
+                      {{ formatearHoras(item.promedioHoras) }}
+                      <small>({{ item.casos }} casos · {{ formatearHoras(item.minHoras) }}–{{ formatearHoras(item.maxHoras) }})</small>
+                    </span>
+                  </div>
+                  <div class="mini-bar-track">
+                    <div
+                      class="mini-bar-fill bar-blue"
+                      [style.width.%]="porcentajeBarra(item.promedioHoras, maxTiempoGrupo(tiemposCruzados().porTipoDesastre))"
+                    ></div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="dash-card">
+      <div class="card-header">
+        <div>
+          <h3>Actividad por Usuario / Actor</h3>
+          <p class="card-subtitle">Carga operativa y tiempo promedio por participante en Bonita</p>
+        </div>
+        <span class="source-badge" [ngClass]="claseFuente(actividadUsuarios().fuente)">{{ actividadUsuarios().fuente }}</span>
+      </div>
+
+      @if (!actividadUsuarios().disponible) {
+        <div class="unavailable-banner">
+          <strong>Sin conexión con Bonita:</strong> {{ actividadUsuarios().mensaje || 'Métrica no disponible.' }}
+        </div>
+      } @else {
+        <div class="inline-stats">
+          <div class="inline-stat">
+            <span>Total tareas completadas</span>
+            <strong>{{ actividadUsuarios().totalTareasCompletadas }}</strong>
+          </div>
+          <div class="inline-stat">
+            <span>Actores activos</span>
+            <strong>{{ actividadUsuarios().usuarios.length }}</strong>
+          </div>
+        </div>
+
+        @if (actividadUsuarios().usuarios.length === 0) {
+          <p class="empty-msg">No hay tareas completadas por usuarios en el período.</p>
+        } @else {
+          <div class="table-wrap mt-sm">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th class="num">Tareas</th>
+                  <th class="num">Tiempo prom.</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (usr of actividadUsuarios().usuarios; track usr.usuario) {
+                  <tr>
+                    <td>
+                      <div class="stage-cell">
+                        <span class="fw-600">{{ usr.usuario }}</span>
+                        <div class="mini-bar-track">
+                          <div
+                            class="mini-bar-fill bar-purple"
+                            [style.width.%]="porcentajeBarra(usr.tareasCompletadas, maxTareasUsuario())"
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="num fw-600">{{ usr.tareasCompletadas }}</td>
+                    <td class="num muted">{{ formatearHoras(usr.promedioHoras) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </article>
+  </div>
+</section>
