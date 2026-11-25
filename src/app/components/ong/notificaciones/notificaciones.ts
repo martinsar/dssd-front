@@ -100,6 +100,9 @@ export class Notificaciones implements OnInit {
       case 'NUEVA_CONVOCATORIA':
       case 'CONVOCATORIA_REABIERTA':
         return n.convocatoriaId ? `/ong/convocatorias/${n.convocatoriaId}/ofertar` : '/ong';
+      // [Entrega final] La invitación lleva al listado de ofertas conjuntas
+      case 'OFERTA_CONJUNTA_INVITACION':
+        return '/ong/ofertas-conjuntas';
       default:
         return n.ofertaId ? `/ong/ofertas/${n.ofertaId}` : '/ong/ofertas';
     }

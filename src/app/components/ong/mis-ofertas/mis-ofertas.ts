@@ -10,7 +10,9 @@ import { CLASE_ESTADO_OFERTA, ETIQUETA_ESTADO_OFERTA } from '../../../shared/eti
 type Pestana = 'activas' | 'adjudicadas' | 'historial';
 
 const ESTADOS_ACTIVAS: EstadoOferta[] = ['PENDIENTE', 'VALIDADA', 'SELECCIONADA'];
-const ESTADOS_ADJUDICADAS: EstadoOferta[] = ['ADJUDICADA', 'FINALIZADA'];
+const ESTADOS_ADJUDICADAS: EstadoOferta[] = ['ADJUDICADA'];
+// [Entrega final] Estados de fin: el lote ya no cambia
+const ESTADOS_HISTORIAL: EstadoOferta[] = ['FINALIZADA', 'NO_HABILITADA', 'NO_SELECCIONADA', 'RETIRADA'];
 
 @Component({
   selector: 'app-mis-ofertas',
@@ -71,7 +73,7 @@ export class MisOfertas implements OnInit {
       if (p === 'adjudicadas') {
         return ESTADOS_ADJUDICADAS.includes(o.estado);
       }
-      return !ESTADOS_ACTIVAS.includes(o.estado) && !ESTADOS_ADJUDICADAS.includes(o.estado);
+      return ESTADOS_HISTORIAL.includes(o.estado);
     });
   }
 }

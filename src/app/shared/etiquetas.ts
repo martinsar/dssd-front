@@ -71,7 +71,8 @@ export const ETIQUETA_TIPO_NOTIFICACION: Record<TipoNotificacion, string> = {
   NUEVA_CONVOCATORIA: 'Nueva convocatoria',
   CONVOCATORIA_REABIERTA: 'Convocatoria reabierta',
   OFERTA_ADJUDICADA: 'Oferta adjudicada',
-  OFERTA_NO_SELECCIONADA: 'Oferta no seleccionada'
+  OFERTA_NO_SELECCIONADA: 'Oferta no seleccionada',
+  OFERTA_CONJUNTA_INVITACION: 'Oferta conjunta'
 };
 
 // Se traduce una etapa recibida como texto (por ejemplo en los gráficos)

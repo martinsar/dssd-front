@@ -27,4 +27,21 @@ describe('MisOfertas', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No habilitada');
   });
+
+  it('separa adjudicadas en curso de finalizadas', async () => {
+    await TestBed.configureTestingModule({
+      imports: [MisOfertas],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+    }).compileComponents();
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(MisOfertas);
+    fixture.detectChanges();
+    http.expectOne(r => r.url.endsWith('/ong/ofertas'))
+      .flush([lote(1, 'PENDIENTE'), lote(2, 'ADJUDICADA'), lote(3, 'FINALIZADA'), lote(4, 'RETIRADA')]);
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+    expect(c.cantidad('activas')).toBe(1);
+    expect(c.cantidad('adjudicadas')).toBe(1);
+    expect(c.cantidad('historial')).toBe(2);
+  });
 });

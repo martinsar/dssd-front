@@ -3,7 +3,8 @@ export type TipoNotificacion =
   | 'NUEVA_CONVOCATORIA'
   | 'CONVOCATORIA_REABIERTA'
   | 'OFERTA_ADJUDICADA'
-  | 'OFERTA_NO_SELECCIONADA';
+  | 'OFERTA_NO_SELECCIONADA'
+  | 'OFERTA_CONJUNTA_INVITACION';
 
 export interface Notificacion {
   id: number;
